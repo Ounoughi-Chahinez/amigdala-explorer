@@ -1,2 +1,5 @@
 data_*/
+features_*.csv
+trade_dashboard_*.json.gz
+models_manifest.json
 .git/

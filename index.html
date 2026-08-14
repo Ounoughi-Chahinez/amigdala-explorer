@@ -169,7 +169,7 @@
             Each scenario layer applies the same scenario number to all three channels: the
             <strong>GDP overlay (EXIOMOD)</strong>, the <strong>CO&#8322; pathway (TIAM)</strong> and
             <strong>sectoral growth (EXIOMOD)</strong>. The isolation layers switch channels off so
-            each can be read separately.
+            each can be read separately. Layers greyed out are not part of this deployment.
           </div>
         </div>
 
@@ -308,6 +308,14 @@
             structure and HS6 resolution to EXIOMOD&rsquo;s answer.
           </p>
 
+          <h4>What this deployment contains</h4>
+          <p>
+            Summary series for every layer: world totals, by exporter, by importer, by HS6 product
+            and by analytical group, each also available aggregated to the 17 EXIOMOD regions.
+            Bilateral exporter-to-importer detail is a separate, much larger dataset and may not be
+            included in this build; where it is absent the chart says so rather than failing.
+          </p>
+
           <h4>Units</h4>
           <p>
             Trade values are stored in thousands of constant 2015 USD and multiplied by 1000 for
@@ -392,6 +400,7 @@
 
     let META = null;
     let MODEL_SMALLS = {};
+    let FLOWS_AVAILABLE = null;   // null = untested, then true/false
     let FEATURES = {};            // tag -> { avgSeries, countryMap }
     let PAIR_CACHE = {};
     let exporterDD = null, importerDD = null, productDD = null;
@@ -648,6 +657,20 @@
       return loaded;
     }
 
+    // Flow files are optional: a summaries-only deployment omits data_*/flows.
+    // Probe once so pair views can explain themselves instead of failing silently.
+    async function probeFlows() {
+      if (FLOWS_AVAILABLE !== null) return FLOWS_AVAILABLE;
+      const k = MODEL_KEYS.find(x => MODEL_SMALLS[x]) || META_SOURCE;
+      const e = (META.exporters || []).find(x => x !== "All");
+      const i = (META.importers || []).find(x => x !== "All" && x !== e);
+      if (!e || !i) { FLOWS_AVAILABLE = false; return false; }
+      const r = await fetchJsonGz(`${MODEL_CONFIG[k].flowBasePath}/${e}/${i}.json.gz`);
+      FLOWS_AVAILABLE = r.ok;
+      if (!r.ok) console.info("flow files not deployed - summary views only");
+      return FLOWS_AVAILABLE;
+    }
+
     async function loadPairFile(modelKey, exporter, importer) {
       const key = `${modelKey}__${exporter}__${importer}`;
       if (PAIR_CACHE[key]) return PAIR_CACHE[key];
@@ -759,6 +782,8 @@
       }
 
       if (exp !== "All" && imp === "All" && prod !== "All") {
+        if (!(await probeFlows()))
+          return { hist: [], forecasts: [], mode: "no-flows", missing: [] };
         let hw = [];
         for (const k of models) {
           const { hist: h, forecast } = await exporterToWorld(k, exp, prod);
@@ -771,6 +796,8 @@
       }
 
       if (exp !== "All" && imp !== "All") {
+        if (!(await probeFlows()))
+          return { hist: [], forecasts: [], mode: "no-flows", missing: [] };
         const aggregated = isRegion(exp) || isRegion(imp) || exp === "EU27" || imp === "EU27";
         let hp = [];
         for (const k of models) {
@@ -883,6 +910,12 @@
         ].filter(Boolean).join(", ");
         const names = models.map(k => MODEL_CONFIG[k].label).join(", ");
         const miss = missing.length ? `<br>Missing: <strong>${missing.join(" | ")}</strong>` : "";
+        if (mode === "no-flows") {
+          setStatus("<strong>Bilateral pair detail is not part of this deployment.</strong><br>" +
+                    "This build ships the summary series only. Every other view works: set exporter " +
+                    "or importer to <strong>All</strong>, or pick a product or analytical group.");
+          return;
+        }
         const modeLabel = { summary: "Summary view", pair: "Pair view",
                             "exporter-world": "Exports to world", empty: "No data" }[mode] || mode;
         setStatus(`${modeLabel}: <strong>${exp}</strong> → <strong>${imp}</strong> | <strong>${prodLabel}</strong>` +
@@ -910,9 +943,16 @@
       try {
         const loaded = await loadBaseData();
         initDropdowns();
+        if (!loaded.length) throw new Error("No model layers could be loaded.");
         if (loaded.length < MODEL_KEYS.length) {
-          const miss = MODEL_KEYS.filter(k => !loaded.includes(k)).map(k => MODEL_CONFIG[k].label);
-          console.warn("layers not found:", miss);
+          const miss = MODEL_KEYS.filter(k => !loaded.includes(k));
+          console.warn("layers not found:", miss.map(k => MODEL_CONFIG[k].label));
+          miss.forEach(k => {
+            const el = document.getElementById(`chk_${k}`);
+            if (el) { el.checked = false; el.disabled = true;
+                      el.closest(".check-item").style.opacity = 0.45;
+                      el.closest(".check-item").title = "not in this deployment"; }
+          });
         }
         await renderPlot();
       } catch (err) {

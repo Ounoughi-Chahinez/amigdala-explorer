@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AMIGDALA Trade Forecast Explorer</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f5f7fb; --card: #ffffff; --card-2: #f9fafb;
+      --text: #111827; --muted: #6b7280; --border: #e5e7eb;
+      --accent: #2563eb; --shadow: 0 10px 30px rgba(17,24,39,0.06); --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Inter, Arial, sans-serif;
+      background: radial-gradient(circle at top left, #eef4ff 0%, #f5f7fb 35%, #f5f7fb 100%);
+      color: var(--text);
+    }
+    .page { max-width: 1440px; margin: 0 auto; padding: 28px 20px 40px; }
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
+      color: white; border-radius: 24px; padding: 28px 30px; margin-bottom: 22px;
+      box-shadow: var(--shadow); position: relative; overflow: hidden;
+    }
+    .hero::after {
+      content: ""; position: absolute; right: -60px; top: -60px;
+      width: 220px; height: 220px; background: rgba(255,255,255,0.08); border-radius: 50%;
+    }
+    .hero h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 800; position: relative; z-index: 1; }
+    .hero p { margin: 8px 0 0; opacity: 0.85; font-size: 15px; position: relative; z-index: 1; }
+    .hero-badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; position: relative; z-index: 1; }
+    .badge {
+      background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.18);
+      color: white; border-radius: 999px; padding: 8px 12px; font-size: 13px;
+      font-weight: 600; backdrop-filter: blur(6px);
+    }
+    .grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .controls-card { padding: 20px; position: sticky; top: 20px; overflow: visible; }
+    .section-title { margin: 0 0 6px; font-size: 18px; font-weight: 800; }
+    .section-subtitle { margin: 0 0 18px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .control { margin-bottom: 14px; position: relative; }
+    .control label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+    .dropdown { position: relative; width: 100%; }
+    .dropdown-trigger {
+      width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 12px;
+      background: white; color: var(--text); padding: 10px 40px 10px 12px; font-size: 14px;
+      outline: none; cursor: pointer; text-align: left; position: relative;
+    }
+    .dropdown-trigger:focus, .dropdown.open .dropdown-trigger {
+      border-color: var(--accent); box-shadow: 0 0 0 4px rgba(37,99,235,0.12);
+    }
+    .dropdown-trigger::after {
+      content: "▾"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 14px; pointer-events: none;
+    }
+    .dropdown-panel {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: white;
+      border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 14px 32px rgba(17,24,39,0.12); z-index: 1000; display: none; overflow: hidden;
+    }
+    .dropdown.open .dropdown-panel { display: block; }
+    .dropdown-search-wrap { padding: 10px; border-bottom: 1px solid var(--border); background: #fff; }
+    .dropdown-search {
+      width: 100%; min-height: 40px; border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 10px; font-size: 14px; outline: none;
+    }
+    .dropdown-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.10); }
+    .dropdown-options { max-height: 260px; overflow-y: auto; padding: 6px 0; }
+    .dropdown-option { padding: 10px 12px; cursor: pointer; font-size: 14px; color: var(--text); line-height: 1.35; }
+    .dropdown-option:hover, .dropdown-option.active { background: #eff6ff; }
+    .dropdown-option.selected { background: #dbeafe; font-weight: 700; }
+    .dropdown-empty { padding: 12px; color: var(--muted); font-size: 13px; }
+    .button-row { display: flex; gap: 10px; margin-top: 8px; margin-bottom: 16px; }
+    button {
+      flex: 1; min-height: 44px; border: none; border-radius: 12px;
+      background: var(--accent); color: white; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    button:hover { opacity: 0.96; }
+    .secondary-btn { background: #e5e7eb; color: #111827; }
+    .status-box {
+      background: var(--card-2); border: 1px dashed var(--border); border-radius: 14px;
+      padding: 12px 14px; font-size: 13px; color: var(--muted); line-height: 1.5; word-break: break-word;
+    }
+    .checkbox-group {
+      display: grid; gap: 8px; margin-top: 8px; padding: 12px;
+      background: var(--card-2); border: 1px solid var(--border); border-radius: 14px;
+    }
+    .group-heading {
+      font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--muted); margin-top: 4px;
+    }
+    .group-heading:first-child { margin-top: 0; }
+    .check-item { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text); }
+    .check-item input { transform: scale(1.05); }
+    .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+    .helper-text { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .chart-card { padding: 18px; }
+    .chart-header { display: flex; justify-content: space-between; align-items: start; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+    .chart-title-wrap h2 { margin: 0 0 4px; font-size: 20px; font-weight: 800; }
+    .chart-title-wrap p { margin: 0; color: var(--muted); font-size: 14px; }
+    .chart-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    .meta-chip {
+      background: #f3f4f6; border: 1px solid var(--border); border-radius: 999px;
+      padding: 8px 10px; font-size: 12px; color: #374151; font-weight: 600;
+    }
+    #chart { min-height: 700px; width: 100%; }
+    .methodology-card {
+      margin-top: 14px; background: #fff; border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 16px; color: var(--muted); font-size: 13px; line-height: 1.7;
+    }
+    .methodology-card h3 { margin: 0 0 8px; color: var(--text); font-size: 16px; }
+    .methodology-card h4 { margin: 14px 0 6px; color: var(--text); font-size: 14px; }
+    .methodology-card p { margin: 0 0 10px; }
+    .methodology-card table { border-collapse: collapse; width: 100%; margin: 6px 0 12px; font-size: 12.5px; }
+    .methodology-card th, .methodology-card td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; }
+    .methodology-card th { background: var(--card-2); color: var(--text); font-weight: 700; }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .controls-card { position: static; }
+      .hero h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>AMIGDALA Trade Forecast Explorer</h1>
+      <p>GDP (EXIOMOD), CO&#8322; (TIAM) and sectoral growth (EXIOMOD) varied together</p>
+      <div class="hero-badges">
+        <span class="badge">Historical BACI 2012&ndash;2024</span>
+        <span class="badge">HS6 projections to 2070</span>
+        <span class="badge">6 scenarios</span>
+        <span class="badge">4 channel-isolation runs</span>
+        <span class="badge">3 scenario channels</span>
+      </div>
+    </section>
+
+    <div class="grid">
+      <aside class="card controls-card">
+        <h2 class="section-title">Filters</h2>
+        <p class="section-subtitle">
+          Choose exporter, importer, product, and one or more model layers, then update the chart.
+        </p>
+
+        <div class="control">
+          <label>Exporter</label>
+          <div id="exporterDropdown" class="dropdown"></div>
+        </div>
+
+        <div class="control">
+          <label>Importer</label>
+          <div id="importerDropdown" class="dropdown"></div>
+        </div>
+
+        <div class="control">
+          <label>Product (HS6)</label>
+          <div id="productDropdown" class="dropdown"></div>
+        </div>
+
+        <div class="control">
+          <label>Model layers</label>
+          <div class="checkbox-group" id="modelChecks"></div>
+          <div class="helper-text">
+            Each scenario layer applies the same scenario number to all three channels: the
+            <strong>GDP overlay (EXIOMOD)</strong>, the <strong>CO&#8322; pathway (TIAM)</strong> and
+            <strong>sectoral growth (EXIOMOD)</strong>. The isolation layers switch channels off so
+            each can be read separately.
+          </div>
+        </div>
+
+        <div class="control">
+          <label>Indicator overlays</label>
+          <div class="checkbox-group">
+            <label class="check-item"><input type="checkbox" id="indGDP" /><span>GDP (EXIOMOD)</span></label>
+            <label class="check-item"><input type="checkbox" id="indGDPCAP" /><span>GDP per capita (EXIOMOD)</span></label>
+            <label class="check-item"><input type="checkbox" id="indPOP" /><span>Population</span></label>
+            <label class="check-item"><input type="checkbox" id="indCO2" /><span>CO&#8322; per capita (TIAM)</span></label>
+          </div>
+          <div class="helper-text">
+            Indicators come from the features file of the <strong>first selected layer</strong>, since
+            GDP per capita is &lambda;-scaled and therefore differs by scenario.
+            <strong>All</strong> shows the cross-country average for each year.
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="updateBtn">Update</button>
+          <button id="resetBtn" class="secondary-btn">Reset</button>
+        </div>
+
+        <div id="status" class="status-box">Loading&hellip;</div>
+      </aside>
+
+      <main class="card chart-card">
+        <div class="chart-header">
+          <div class="chart-title-wrap">
+            <h2>Trade series</h2>
+            <p>Historical trade against projected paths, with optional macro overlays.</p>
+          </div>
+          <div class="chart-meta">
+            <div class="meta-chip">Black: historical</div>
+            <div class="meta-chip">Colored: projected layers</div>
+            <div class="meta-chip">Dashed / dotted: indicators</div>
+          </div>
+        </div>
+
+        <div id="chart"></div>
+
+        <div class="methodology-card">
+          <h3>Methodology</h3>
+
+          <p>
+            Bilateral merchandise trade at HS6 product level, estimated on BACI 2012&ndash;2024 and
+            projected to 2070. Three scenario channels sit on one pipeline: the <strong>EXIOMOD</strong>
+            GDP overlay, the <strong>TIAM</strong> CO&#8322; pathway, and <strong>EXIOMOD sectoral
+            growth</strong>. All three are imposed inputs; none is fitted to trade data.
+          </p>
+
+          <h4>Step 1 &mdash; chapter totals (PPML gravity)</h4>
+          <p>
+            One Poisson regression per HS2 chapter sets each country pair&rsquo;s trade within that
+            chapter. Economic size enters as a <strong>fixed offset</strong> on log GDP for both
+            partners with the elasticity held at 1, so trade grows with the economy rather than
+            faster. Estimated regressors: <strong>log distance</strong>, a <strong>damped time
+            trend</strong> (0.25 beyond 2024), and a chapter-specific <strong>exporter CO&#8322;
+            elasticity</strong>.
+          </p>
+
+          <h4>Step 2 &mdash; sectoral tilt (imposed)</h4>
+          <p>
+            Chapter totals are reweighted by EXIOMOD sectoral output growth, downscaled from the 17
+            EXIOMOD regions to individual countries using <strong>World Bank sector value-added
+            shares</strong> combined with each country&rsquo;s BACI sector composition, then
+            renormalised so every country&rsquo;s total is unchanged. The channel therefore moves
+            <em>composition</em> and never <em>levels</em>. It applies at chapter level only: the
+            weight is constant within a chapter, so it would divide out of the Step 3 share
+            renormalisation.
+          </p>
+
+          <h4>Step 3 &mdash; product shares within each chapter</h4>
+          <p>
+            A gradient-boosting model predicts the year-on-year change in each HS6 line&rsquo;s logit
+            share of its parent chapter. Features: the pair&rsquo;s recent share level, trend and
+            volatility, log distance, a product identifier, the three product exposure scores
+            (fossil, environmental good, low-carbon technology), and each of those interacted with
+            exporter CO&#8322;. Predicted shares are rescaled exactly to the Step 2 chapter total, so
+            adding-up is exact by construction rather than by approximation.
+          </p>
+
+          <h4>The three scenario channels</h4>
+          <table>
+            <tr><th>Channel</th><th>Source</th><th>What it moves</th></tr>
+            <tr><td>GDP overlay &lambda;</td><td>EXIOMOD regional GDP</td>
+                <td>country trade <em>levels</em>; common to all chapters, so it cancels in shares</td></tr>
+            <tr><td>CO&#8322;</td><td>TIAM emission pathways</td>
+                <td>composition, but only for fossil, environmental-good and low-carbon-tagged products</td></tr>
+            <tr><td>Sectoral growth</td><td>EXIOMOD <code>output_CITS</code></td>
+                <td>composition, across every product group</td></tr>
+          </table>
+          <p>
+            &lambda;(region, year) is the ratio of a scenario&rsquo;s regional GDP to the same
+            region&rsquo;s GDP under the reference scenario. It scales GDP only; population stays on
+            the SSP2 path. &lambda; = 1 for all years through 2024, so the estimation window is
+            untouched. CO&#8322; coefficients are fitted on a fixed reference pathway, because the
+            TIAM scenarios already diverge inside the estimation window; CO&#8322; then varies only
+            in projection.
+          </p>
+
+          <h4>Layers in this build</h4>
+          <table>
+            <tr><th>Layer</th><th>GDP (EXIOMOD)</th><th>CO&#8322; (TIAM)</th><th>Sectoral growth</th></tr>
+            <tr><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td></tr>
+            <tr><td>Base</td><td>off</td><td>off</td><td>off</td></tr>
+            <tr><td>GDP only (EXIOMOD)</td><td>Scenario 1</td><td>off</td><td>off</td></tr>
+            <tr><td>CO&#8322; only (TIAM)</td><td>off</td><td>Scenario 1</td><td>off</td></tr>
+            <tr><td>Sector growth only</td><td>off</td><td>off</td><td>Scenario 1</td></tr>
+          </table>
+
+          <h4>What is estimated and what is assumed</h4>
+          <p>
+            <strong>Estimated:</strong> gravity structure, chapter CO&#8322; elasticities, HS6 share
+            allocation. <strong>Imposed:</strong> the unit income elasticity, the TIAM pathway, the
+            EXIOMOD &lambda; overlay and the sectoral tilt. The sectoral channel cannot be estimated:
+            the EXIOMOD scenarios are identical before 2025, so within-cell scenario variance over
+            the estimation window is 0.0018 per cent of total, and a coefficient fitted there would
+            be identified off the downscaling key rather than off scenario variation.
+            <strong>Not supported by the data:</strong> a green reallocation
+            mechanism &mdash; the cross-chapter test of whether fossil-exposed chapters contract
+            faster as exporters decarbonise returns the wrong sign and is not statistically
+            significant, and the HS6 CO&#8322; interactions carry negligible feature importance.
+            Fuels results should be read as a scenario assumption, not as a model finding.
+          </p>
+          <p>
+            <strong>Known artefact:</strong> the CO&#8322; variable is a standardised level rather
+            than a deviation from 2024, so the channel re-levels at the join between fitted history
+            and projection. Direction after roughly 2040 is credible; timing before then is not.
+          </p>
+
+          <p>
+            <strong>On interpretation:</strong> the sectoral channel carries EXIOMOD&rsquo;s own
+            sectoral reallocation. Where these results agree with EXIOMOD on composition, that is
+            transmission rather than independent corroboration &mdash; this model adds bilateral
+            structure and HS6 resolution to EXIOMOD&rsquo;s answer.
+          </p>
+
+          <h4>Units</h4>
+          <p>
+            Trade values are stored in thousands of constant 2015 USD and multiplied by 1000 for
+            display. Historical observations run to 2024; projections are shown at 5-year milestones.
+          </p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const TRADE_SCALE = 1000;
+
+    // ---- the nine layers in this export ----
+    const MODEL_CONFIG = {
+      SW_SCENARIO_1:         { label: "Scenario 1",             color: "#15803d", group: "Scenarios" },
+      SW_SCENARIO_6:         { label: "Scenario 6",             color: "#7c3aed", group: "Scenarios" },
+      SW_SCENARIO_6_LOW_BIO: { label: "Scenario 6 low bio",     color: "#a21caf", group: "Scenarios" },
+      SW_SCENARIO_8:         { label: "Scenario 8",             color: "#b91c1c", group: "Scenarios" },
+      SW_SCENARIO_10:        { label: "Scenario 10 (ref)",      color: "#0f766e", group: "Scenarios" },
+      SW_SCENARIO_15:        { label: "Scenario 15",            color: "#a16207", group: "Scenarios" },
+      BASE:                  { label: "Base (no channels)",     color: "#64748b", group: "Channel isolation" },
+      GDP_ONLY:              { label: "GDP only (EXIOMOD)",     color: "#0369a1", group: "Channel isolation" },
+      CO2_ONLY:              { label: "CO\u2082 only (TIAM)",   color: "#c2410c", group: "Channel isolation" },
+      SW_ONLY:               { label: "Sector growth only",     color: "#be185d", group: "Channel isolation" }
+    };
+
+    // tag = lowercase key; drives every path
+    // Data files sit beside index.html. Set to "webapp_data_compact/" if you
+    // keep them in a subfolder instead.
+    const DATA_BASE = "";
+
+    Object.keys(MODEL_CONFIG).forEach(k => {
+      const tag = k.toLowerCase();
+      MODEL_CONFIG[k].tag          = tag;
+      MODEL_CONFIG[k].smallPath    = `${DATA_BASE}trade_dashboard_small_${tag}.json.gz`;
+      MODEL_CONFIG[k].metaPath     = `${DATA_BASE}trade_dashboard_meta_${tag}.json.gz`;
+      MODEL_CONFIG[k].featuresPath = `${DATA_BASE}features_${tag}.csv`;
+      MODEL_CONFIG[k].flowBasePath = `${DATA_BASE}data_${tag}/flows`;
+    });
+
+    const MODEL_KEYS   = Object.keys(MODEL_CONFIG);
+    const DEFAULT_ON   = ["SW_SCENARIO_1", "SW_SCENARIO_10"];
+    const META_SOURCE  = "SW_SCENARIO_1";   // any layer: dropdown lists are identical
+
+    // ---- EXIOMOD regions: 17 aggregates over the BACI countries ----
+    const REGIONS = {"CHN":["CHN"],"EUBA":["EST","LTU","LVA"],"EUBE":["BEL","LUX","NLD"],"EUCN":["CSK","CZE","POL","SVK"],"EUCS":["HRV","HUN","SVN"],"EUDE":["AUT","DDR","DEU"],"EUEA":["BGR","ROU"],"EUFR":["FRA","IRL"],"EUNO":["DNK","FIN","SWE"],"EUSE":["CYP","GRC","MLT"],"EUSW":["ESP","ITA","PRT"],"RWA":["AFG","ASM","AUS","BGD","BRN","BTN","CCK","COK","CXR","FJI","FSM","GUM","HKG","IDN","IND","IOT","IRN","JPN","KAZ","KGZ","KHM","KIR","KOR","LAO","LKA","MAC","MDV","MHL","MMR","MNG","MNP","MYS","NCL","NFK","NIU","NPL","NRU","NZL","PAK","PCN","PHL","PLW","PNG","PRK","PYF","RUS","SGP","SLB","SUN","THA","TJK","TKL","TKM","TLS","TON","TUV","UZB","VNM","VUT","WLF","WSM"],"RWE":["ALB","AND","BIH","BLR","CHE","GBR","GIB","ISL","MDA","MKD","MNE","NOR","SCG","SMR","SRB","UKR"],"RWF":["AGO","ATF","BDI","BEN","BFA","BWA","CAF","CIV","CMR","COD","COG","COM","CPV","DJI","DZA","EGY","ERI","ETH","GAB","GHA","GIN","GMB","GNB","GNQ","KEN","LBR","LBY","LSO","MAR","MDG","MLI","MOZ","MRT","MUS","MWI","MYT","NAM","NER","NGA","RWA","SDN","SEN","SHN","SLE","SOM","SSD","STP","SWZ","SYC","TCD","TGO","TUN","TZA","UGA","ZAF","ZMB","ZWE"],"RWM":["ARE","ARM","AZE","BHR","GEO","IRQ","ISR","JOR","KWT","LBN","OMN","PSE","QAT","SAU","SYR","TUR","YEM"],"RWNA":["BMU","CAN","GRL","SPM","USA"],"RWSA":["ABW","AIA","ANT","ARG","ATG","BES","BHS","BLM","BLZ","BOL","BRA","BRB","CHL","COL","CRI","CUB","CUW","CYM","DMA","DOM","ECU","FLK","GRD","GTM","GUY","HND","HTI","JAM","KNA","LCA","MEX","MSR","NIC","PAN","PER","PRY","SLV","SUR","SXM","TCA","TTO","URY","VCT","VEN","VGB"]};
+
+    const REGION_LABEL = {
+      CHN:"China", EUBA:"EU Baltic", EUBE:"EU Benelux", EUCN:"EU Central-North",
+      EUCS:"EU Central-South", EUDE:"EU Germany & Austria", EUEA:"EU East",
+      EUFR:"EU France & Ireland", EUNO:"EU Nordic", EUSE:"EU South-East",
+      EUSW:"EU South-West", RWA:"RoW Asia-Pacific", RWE:"RoW Europe",
+      RWF:"RoW Africa", RWM:"RoW Middle East", RWNA:"RoW North America",
+      RWSA:"RoW South America"
+    };
+    const EU_REGION_KEYS = Object.keys(REGIONS).filter(r => r.startsWith("EU"));
+    const isRegion = v => Object.prototype.hasOwnProperty.call(REGIONS, v);
+    function regionMembers(r, universe) {
+      const set = new Set(universe || []); const m = REGIONS[r] || [];
+      return set.size ? m.filter(c => set.has(c)) : m;
+    }
+    function resolveCountries(v, universe) {
+      if (v === "All") return null;
+      if (v === "EU27") return EU_REGION_KEYS.flatMap(r => regionMembers(r, universe));
+      if (isRegion(v)) return regionMembers(v, universe);
+      return [v];
+    }
+
+    // ---- analytical product groups, aggregated in-browser from HS6 ----
+    const ANALYTICAL_GROUPS = {
+      grp_ag01: { label: "AG01 Fuels and feedstocks (HS 27)",     test: k => k.slice(0,2) === "27" },
+      grp_ag02: { label: "AG02 Chemicals and plastics (HS 28-40)", test: k => { const c = +k.slice(0,2); return c >= 28 && c <= 40; } },
+      grp_ag03: { label: "AG03 Steel (HS 72-73)",                 test: k => { const c = +k.slice(0,2); return c === 72 || c === 73; } },
+      grp_ag04: { label: "AG04 Cement (HS 2523)",                 test: k => k.slice(0,4) === "2523" },
+      grp_ag05: { label: "AG05 Glass (HS 70)",                    test: k => k.slice(0,2) === "70" },
+      grp_ag06: { label: "AG06 Paper, pulp and print (HS 47-49)", test: k => { const c = +k.slice(0,2); return c >= 47 && c <= 49; } },
+      grp_ag07: { label: "AG07 Aluminium (HS 76 + 260600)",       test: k => k.slice(0,2) === "76" || k === "260600" },
+      grp_ag08: { label: "AG08 Copper (HS 74 + 260300)",          test: k => k.slice(0,2) === "74" || k === "260300" }
+    };
+    const isGroup = p => typeof p === "string" && p.indexOf("grp_") === 0;
+
+    let META = null;
+    let MODEL_SMALLS = {};
+    let FEATURES = {};            // tag -> { avgSeries, countryMap }
+    let PAIR_CACHE = {};
+    let exporterDD = null, importerDD = null, productDD = null;
+
+    const statusEl  = document.getElementById("status");
+    const updateBtn = document.getElementById("updateBtn");
+    const resetBtn  = document.getElementById("resetBtn");
+    const indGDP    = document.getElementById("indGDP");
+    const indGDPCAP = document.getElementById("indGDPCAP");
+    const indPOP    = document.getElementById("indPOP");
+    const indCO2    = document.getElementById("indCO2");
+
+    const setStatus = m => { statusEl.innerHTML = m; };
+
+    // ---------- model checkbox list ----------
+    function buildModelChecks() {
+      const box = document.getElementById("modelChecks");
+      let lastGroup = null;
+      box.innerHTML = "";
+      MODEL_KEYS.forEach(k => {
+        const cfg = MODEL_CONFIG[k];
+        if (cfg.group !== lastGroup) {
+          const h = document.createElement("div");
+          h.className = "group-heading";
+          h.textContent = cfg.group;
+          box.appendChild(h);
+          lastGroup = cfg.group;
+        }
+        const lab = document.createElement("label");
+        lab.className = "check-item";
+        lab.innerHTML =
+          `<input type="checkbox" id="chk_${k}" ${DEFAULT_ON.includes(k) ? "checked" : ""}>` +
+          `<span class="swatch" style="background:${cfg.color}"></span><span>${cfg.label}</span>`;
+        box.appendChild(lab);
+      });
+    }
+    const getSelectedModels = () =>
+      MODEL_KEYS.filter(k => document.getElementById(`chk_${k}`)?.checked);
+
+    // ---------- gzip fetch ----------
+    // Some hosts (Vercel, Netlify) serve .gz with Content-Encoding: gzip, so the
+    // browser has already decompressed by the time we see the body. Others
+    // (GitHub Pages, python -m http.server) hand back raw gzip bytes. Sniff the
+    // gzip magic number 1f 8b and only decompress when it is actually there.
+    async function fetchJsonGz(url) {
+      let res;
+      try { res = await fetch(url, { cache: "no-store" }); }
+      catch (err) { return { ok: false, error: `Fetch failed: ${err.message}`, url }; }
+      if (!res.ok) return { ok: false, error: `HTTP ${res.status}`, url };
+      try {
+        const buf = await res.arrayBuffer();
+        const head = new Uint8Array(buf.slice(0, 2));
+        let text;
+        if (head[0] === 0x1f && head[1] === 0x8b) {
+          const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
+          text = await new Response(stream).text();
+        } else {
+          text = new TextDecoder().decode(buf);
+        }
+        return { ok: true, data: JSON.parse(text), url };
+      } catch (err) { return { ok: false, error: `Decode failed: ${err.message}`, url }; }
+    }
+
+    // ---------- CSV ----------
+    function parseCSVLine(line) {
+      const out = []; let cur = "", inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i], nx = line[i + 1];
+        if (ch === '"') { if (inQ && nx === '"') { cur += '"'; i++; } else inQ = !inQ; }
+        else if (ch === "," && !inQ) { out.push(cur); cur = ""; }
+        else cur += ch;
+      }
+      out.push(cur); return out;
+    }
+    function csvToObjects(text) {
+      const lines = text.trim().split(/\r?\n/);
+      if (!lines.length) return [];
+      const headers = parseCSVLine(lines[0]).map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const vals = parseCSVLine(line), o = {};
+        headers.forEach((h, i) => { o[h] = (vals[i] ?? "").trim(); });
+        return o;
+      });
+    }
+    const safeNum = v => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+
+    function buildFeatureIndex(rows) {
+      const avg = {}, byCountry = {};
+      rows.forEach(r => {
+        const c = (r.country_iso3 || "").trim(), t = Number(r.t);
+        if (!c || !Number.isFinite(t)) return;
+        const row = { t, gdp: safeNum(r.gdp), gdpcap: safeNum(r.gdpcap),
+                      pop: safeNum(r.pop), co2_pc: safeNum(r.co2_pc) };
+        (byCountry[c] = byCountry[c] || []).push(row);
+        if (!avg[t]) avg[t] = { t, gdp: [0,0], gdpcap: [0,0], pop: [0,0], co2_pc: [0,0] };
+        ["gdp","gdpcap","pop","co2_pc"].forEach(f => {
+          if (row[f] !== null) { avg[t][f][0] += row[f]; avg[t][f][1] += 1; }
+        });
+      });
+      Object.keys(byCountry).forEach(c => byCountry[c].sort((a,b) => a.t - b.t));
+      const avgSeries = Object.values(avg).map(d => {
+        const o = { t: d.t };
+        ["gdp","gdpcap","pop","co2_pc"].forEach(f => { o[f] = d[f][1] ? d[f][0] / d[f][1] : null; });
+        return o;
+      }).sort((a,b) => a.t - b.t);
+      return { avgSeries, countryMap: byCountry };
+    }
+
+    // ---------- compact series helpers ----------
+    const toHist = s => (!s || !Array.isArray(s.y)) ? []
+      : s.y.map((y,i) => ({ t: Number(y), value: Number(s.v[i]) * TRADE_SCALE }));
+    const toFore = s => (!s || !Array.isArray(s.y)) ? []
+      : s.y.map((y,i) => ({ t: Number(y), pred: Number(s.v[i]) * TRADE_SCALE }));
+
+    function sumCompact(list) {
+      const acc = {};
+      for (const s of list) {
+        if (!s || !Array.isArray(s.y)) continue;
+        for (let i = 0; i < s.y.length; i++) {
+          const yr = Number(s.y[i]);
+          acc[yr] = (acc[yr] || 0) + Number(s.v[i] || 0);
+        }
+      }
+      const years = Object.keys(acc).map(Number).sort((a,b) => a-b);
+      return { y: years, v: years.map(y => acc[y]) };
+    }
+    function aggregateGroup(productMap, groupId) {
+      if (!productMap) return { y: [], v: [] };
+      const test = ANALYTICAL_GROUPS[groupId].test;
+      const members = Object.keys(productMap).filter(k => test(String(k).padStart(6,"0")));
+      return sumCompact(members.map(k => productMap[k]));
+    }
+    function addConnector(hist, pred) {
+      if (!hist.length) return pred;
+      const last = hist[hist.length - 1];
+      if (pred.length && Number(pred[0].t) === Number(last.t)) return pred;
+      return [{ t: last.t, pred: last.value }, ...pred];
+    }
+
+    // ---------- dropdown widget ----------
+    function createSearchableDropdown({ mountId, items = [], defaultValue = null,
+                                        placeholder = "Select...", searchPlaceholder = "Search..." }) {
+      const root = document.getElementById(mountId);
+      const state = { items: [...items], filtered: [...items],
+                      value: defaultValue ?? (items[0]?.value ?? ""), activeIndex: -1 };
+      root.innerHTML = `
+        <button type="button" class="dropdown-trigger"></button>
+        <div class="dropdown-panel">
+          <div class="dropdown-search-wrap">
+            <input type="text" class="dropdown-search" placeholder="${searchPlaceholder}">
+          </div>
+          <div class="dropdown-options"></div>
+        </div>`;
+      const trigger = root.querySelector(".dropdown-trigger");
+      const search  = root.querySelector(".dropdown-search");
+      const optBox  = root.querySelector(".dropdown-options");
+
+      const selected = () => state.items.find(i => String(i.value) === String(state.value)) || null;
+      const renderTrigger = () => { const s = selected(); trigger.textContent = s ? s.label : placeholder; };
+
+      function renderOptions() {
+        optBox.innerHTML = "";
+        if (!state.filtered.length) { optBox.innerHTML = `<div class="dropdown-empty">No matches found.</div>`; return; }
+        state.filtered.forEach((item, idx) => {
+          const d = document.createElement("div");
+          d.className = "dropdown-option";
+          if (String(item.value) === String(state.value)) d.classList.add("selected");
+          if (idx === state.activeIndex) d.classList.add("active");
+          d.textContent = item.label;
+          d.addEventListener("click", () => { state.value = item.value; close(); renderTrigger(); });
+          optBox.appendChild(d);
+        });
+      }
+      function filter(q) {
+        const s = (q || "").trim().toLowerCase();
+        state.filtered = !s ? [...state.items]
+          : state.items.filter(i => String(i.label).toLowerCase().includes(s) ||
+                                    String(i.value).toLowerCase().includes(s));
+        state.activeIndex = state.filtered.length ? 0 : -1;
+        renderOptions();
+      }
+      const isOpen = () => root.classList.contains("open");
+      function open() { closeAllDropdowns(); root.classList.add("open"); search.value = ""; filter(""); setTimeout(() => search.focus(), 0); }
+      function close() { root.classList.remove("open"); state.activeIndex = -1; }
+
+      trigger.addEventListener("click", () => isOpen() ? close() : open());
+      search.addEventListener("input", () => filter(search.value));
+      search.addEventListener("keydown", e => {
+        if (!isOpen()) return;
+        if (e.key === "ArrowDown") { e.preventDefault(); state.activeIndex = Math.min(state.activeIndex+1, state.filtered.length-1); renderOptions(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); state.activeIndex = Math.max(state.activeIndex-1, 0); renderOptions(); }
+        else if (e.key === "Enter") { e.preventDefault(); const it = state.filtered[state.activeIndex]; if (it) { state.value = it.value; close(); renderTrigger(); } }
+        else if (e.key === "Escape") close();
+        const act = optBox.querySelector(".dropdown-option.active");
+        if (act) act.scrollIntoView({ block: "nearest" });
+      });
+
+      renderTrigger(); renderOptions();
+      return { setValue: v => { state.value = v; renderTrigger(); renderOptions(); }, getValue: () => state.value };
+    }
+    function closeAllDropdowns() {
+      document.querySelectorAll(".dropdown.open").forEach(el => el.classList.remove("open"));
+    }
+    document.addEventListener("click", e => { if (!e.target.closest(".dropdown")) closeAllDropdowns(); });
+
+    function regionItems(universe) {
+      const items = [{ value: "EU27", label: "\u25c6 EU aggregate (all EU regions)" }];
+      Object.keys(REGIONS).sort().forEach(r => {
+        const n = regionMembers(r, universe).length;
+        if (!n) return;
+        items.push({ value: r, label: `\u25c6 ${r} \u2014 ${REGION_LABEL[r] || r} (${n})` });
+      });
+      return items;
+    }
+
+    function initDropdowns() {
+      const expU = (META.exporters || []).filter(v => v !== "All");
+      const impU = (META.importers || []).filter(v => v !== "All");
+      const expItems = [{ value:"All", label:"All" }, ...regionItems(expU), ...expU.map(v => ({ value:v, label:v }))];
+      const impItems = [{ value:"All", label:"All" }, ...regionItems(impU), ...impU.map(v => ({ value:v, label:v }))];
+      const baseProd = (META.products || [{ k:"All", label:"All" }]).map(p => ({ value: p.k, label: p.label }));
+      const grpItems = Object.keys(ANALYTICAL_GROUPS).map(g => ({ value: g, label: "▸ " + ANALYTICAL_GROUPS[g].label }));
+      const prodItems = baseProd.length ? [baseProd[0], ...grpItems, ...baseProd.slice(1)] : grpItems;
+
+      exporterDD = createSearchableDropdown({ mountId: "exporterDropdown", items: expItems, defaultValue: "All",
+                                              placeholder: "Select exporter", searchPlaceholder: "Search exporter..." });
+      importerDD = createSearchableDropdown({ mountId: "importerDropdown", items: impItems, defaultValue: "All",
+                                              placeholder: "Select importer", searchPlaceholder: "Search importer..." });
+      productDD  = createSearchableDropdown({ mountId: "productDropdown",  items: prodItems, defaultValue: "All",
+                                              placeholder: "Select product", searchPlaceholder: "Search product or HS6..." });
+    }
+
+    // ---------- data loading ----------
+    async function loadBaseData() {
+      const metaRes = await fetchJsonGz(MODEL_CONFIG[META_SOURCE].metaPath);
+      if (!metaRes.ok) throw new Error(`Cannot load meta: ${metaRes.error}`);
+      META = metaRes.data;
+
+      const loaded = [];
+      for (const k of MODEL_KEYS) {
+        const r = await fetchJsonGz(MODEL_CONFIG[k].smallPath);
+        MODEL_SMALLS[k] = r.ok ? r.data : null;
+        if (r.ok) loaded.push(k);
+      }
+
+      await Promise.all(MODEL_KEYS.map(async k => {
+        const tag = MODEL_CONFIG[k].tag;
+        try {
+          const res = await fetch(MODEL_CONFIG[k].featuresPath, { cache: "no-store" });
+          if (res.ok) FEATURES[tag] = buildFeatureIndex(csvToObjects(await res.text()));
+        } catch (err) { console.warn("features unavailable for", tag, err); }
+      }));
+
+      return loaded;
+    }
+
+    async function loadPairFile(modelKey, exporter, importer) {
+      const key = `${modelKey}__${exporter}__${importer}`;
+      if (PAIR_CACHE[key]) return PAIR_CACHE[key];
+      const url = `${MODEL_CONFIG[modelKey].flowBasePath}/${exporter}/${importer}.json.gz`;
+      const r = await fetchJsonGz(url);
+      PAIR_CACHE[key] = r.ok ? r.data : { __missing: true, __error: r.error, __url: url };
+      return PAIR_CACHE[key];
+    }
+
+    // ---------- series selection ----------
+    function sumOverKeys(block, keys) {
+      if (!block || !keys) return { y: [], v: [] };
+      return sumCompact(keys.map(k => block[k]).filter(Boolean));
+    }
+    function summarySide(small, side, sel, universe, which) {
+      const block = small?.[side]?.[which];
+      if (!block) return { y: [], v: [] };
+      if (!isRegion(sel) && sel !== "EU27") return block[sel] || { y: [], v: [] };
+      return sumOverKeys(block, resolveCountries(sel, universe));
+    }
+    function summaryHist(small, exp, imp, prod) {
+      if (!small) return [];
+      const eu = (META.exporters || []).filter(v => v !== "All");
+      const iu = (META.importers || []).filter(v => v !== "All");
+      if (exp === "All" && imp === "All" && prod === "All") return toHist(small.global?.hist);
+      if (exp !== "All" && imp === "All" && prod === "All") return toHist(summarySide(small,"exporter",exp,eu,"hist"));
+      if (exp === "All" && imp !== "All" && prod === "All") return toHist(summarySide(small,"importer",imp,iu,"hist"));
+      if (exp === "All" && imp === "All" && isGroup(prod))  return toHist(aggregateGroup(small.product?.hist, prod));
+      if (exp === "All" && imp === "All" && prod !== "All") return toHist(small.product?.hist?.[String(prod)]);
+      return [];
+    }
+    function summaryFore(small, exp, imp, prod) {
+      if (!small) return [];
+      const eu = (META.exporters || []).filter(v => v !== "All");
+      const iu = (META.importers || []).filter(v => v !== "All");
+      if (exp === "All" && imp === "All" && prod === "All") return toFore(small.global?.corr);
+      if (exp !== "All" && imp === "All" && prod === "All") return toFore(summarySide(small,"exporter",exp,eu,"corr"));
+      if (exp === "All" && imp !== "All" && prod === "All") return toFore(summarySide(small,"importer",imp,iu,"corr"));
+      if (exp === "All" && imp === "All" && isGroup(prod))  return toFore(aggregateGroup(small.product?.corr, prod));
+      if (exp === "All" && imp === "All" && prod !== "All") return toFore(small.product?.corr?.[String(prod)]);
+      return [];
+    }
+    function pairSeries(pairData, prod) {
+      if (!pairData || pairData.__missing) return { hist: [], forecast: [] };
+      if (prod === "All") return { hist: toHist(pairData.h), forecast: toFore(pairData.c) };
+      if (isGroup(prod)) {
+        const p = pairData.p || {};
+        const h = aggregateGroup(Object.fromEntries(Object.entries(p).map(([k,v]) => [k, v.h])), prod);
+        const c = aggregateGroup(Object.fromEntries(Object.entries(p).map(([k,v]) => [k, v.c])), prod);
+        return { hist: toHist(h), forecast: toFore(c) };
+      }
+      const e = pairData.p?.[String(prod)];
+      return e ? { hist: toHist(e.h), forecast: toFore(e.c) } : { hist: [], forecast: [] };
+    }
+    async function exporterToWorld(modelKey, exporter, prod) {
+      const hParts = [], cParts = [];
+      const expU = (META.exporters || []).filter(x => x !== "All");
+      const importers = (META.importers || []).filter(x => x !== "All");
+      const exporters = resolveCountries(exporter, expU) || [];
+      for (const e of exporters) {
+        await Promise.all(importers.map(async imp => {
+          const pd = await loadPairFile(modelKey, e, imp);
+          if (!pd || pd.__missing) return;
+          const { hist, forecast } = pairSeries(pd, prod);
+          if (hist.length)     hParts.push({ y: hist.map(d => d.t),     v: hist.map(d => d.value / TRADE_SCALE) });
+          if (forecast.length) cParts.push({ y: forecast.map(d => d.t), v: forecast.map(d => d.pred / TRADE_SCALE) });
+        }));
+      }
+      return { hist: toHist(sumCompact(hParts)), forecast: toFore(sumCompact(cParts)) };
+    }
+
+    async function pairAggregate(modelKey, exp, imp, prod) {
+      const expU = (META.exporters || []).filter(x => x !== "All");
+      const impU = (META.importers || []).filter(x => x !== "All");
+      const es = resolveCountries(exp, expU) || [], is = resolveCountries(imp, impU) || [];
+      const hParts = [], cParts = [];
+      for (const e of es) {
+        await Promise.all(is.map(async i => {
+          const pd = await loadPairFile(modelKey, e, i);
+          if (!pd || pd.__missing) return;
+          const { hist, forecast } = pairSeries(pd, prod);
+          if (hist.length)     hParts.push({ y: hist.map(d => d.t),     v: hist.map(d => d.value / TRADE_SCALE) });
+          if (forecast.length) cParts.push({ y: forecast.map(d => d.t), v: forecast.map(d => d.pred / TRADE_SCALE) });
+        }));
+      }
+      return { hist: toHist(sumCompact(hParts)), forecast: toFore(sumCompact(cParts)) };
+    }
+
+    async function getSelectedSeries() {
+      const exp = exporterDD.getValue(), imp = importerDD.getValue(), prod = productDD.getValue();
+      const models = getSelectedModels();
+      const refSmall = MODEL_SMALLS[models[0]] || MODEL_SMALLS[META_SOURCE];
+
+      const isSummary =
+        (exp === "All" && imp === "All") ||
+        (exp !== "All" && imp === "All" && prod === "All") ||
+        (exp === "All" && imp !== "All" && prod === "All");
+
+      let hist = summaryHist(refSmall, exp, imp, prod);
+      const forecasts = [], missing = [];
+
+      if (isSummary) {
+        for (const k of models) {
+          const f = addConnector(hist, summaryFore(MODEL_SMALLS[k], exp, imp, prod));
+          if (f.length) forecasts.push({ key: k, label: MODEL_CONFIG[k].label, color: MODEL_CONFIG[k].color, series: f });
+          else missing.push(MODEL_CONFIG[k].label);
+        }
+        return { hist, forecasts, mode: "summary", missing };
+      }
+
+      if (exp !== "All" && imp === "All" && prod !== "All") {
+        let hw = [];
+        for (const k of models) {
+          const { hist: h, forecast } = await exporterToWorld(k, exp, prod);
+          if (!hw.length && h.length) hw = h;
+          const f = addConnector(h.length ? h : hw, forecast);
+          if (f.length) forecasts.push({ key: k, label: MODEL_CONFIG[k].label, color: MODEL_CONFIG[k].color, series: f });
+          else missing.push(MODEL_CONFIG[k].label);
+        }
+        return { hist: hw, forecasts, mode: "exporter-world", missing };
+      }
+
+      if (exp !== "All" && imp !== "All") {
+        const aggregated = isRegion(exp) || isRegion(imp) || exp === "EU27" || imp === "EU27";
+        let hp = [];
+        for (const k of models) {
+          let mh, forecast;
+          if (aggregated) {
+            const r = await pairAggregate(k, exp, imp, prod);
+            mh = r.hist; forecast = r.forecast;
+            if (!mh.length && !forecast.length) { missing.push(`${MODEL_CONFIG[k].label} (no pair files)`); continue; }
+          } else {
+            const pd = await loadPairFile(k, exp, imp);
+            if (!pd || pd.__missing) { missing.push(`${MODEL_CONFIG[k].label} (${pd?.__error || "no file"})`); continue; }
+            ({ hist: mh, forecast } = pairSeries(pd, prod));
+          }
+          if (!hp.length && mh.length) hp = mh;
+          const f = addConnector(hist.length ? hist : mh, forecast);
+          if (f.length) forecasts.push({ key: k, label: MODEL_CONFIG[k].label, color: MODEL_CONFIG[k].color, series: f });
+          else missing.push(MODEL_CONFIG[k].label);
+        }
+        if (!hist.length) hist = hp;
+        return { hist, forecasts, mode: "pair", missing };
+      }
+      return { hist: [], forecasts: [], mode: "empty", missing };
+    }
+
+    // ---------- indicators ----------
+    function indicatorTraces(exp, imp, models) {
+      const tag = MODEL_CONFIG[models[0]]?.tag;
+      const idx = FEATURES[tag];
+      if (!idx) return [];
+      const pick = c => {
+        if (c === "All") return idx.avgSeries;
+        if (isRegion(c) || c === "EU27") {
+          const members = (resolveCountries(c, Object.keys(idx.countryMap)) || []).filter(m => idx.countryMap[m]);
+          if (!members.length) return [];
+          const acc = {};
+          members.forEach(m => idx.countryMap[m].forEach(r => {
+            if (!acc[r.t]) acc[r.t] = { t:r.t, gdp:[0,0], gdpcap:[0,0], pop:[0,0], co2_pc:[0,0] };
+            ["gdp","gdpcap","pop","co2_pc"].forEach(f => {
+              if (r[f] !== null && r[f] !== undefined) { acc[r.t][f][0] += r[f]; acc[r.t][f][1] += 1; }
+            });
+          }));
+          return Object.values(acc).map(d => ({
+            t: d.t,
+            gdp:    d.gdp[1]    ? d.gdp[0]                : null,
+            pop:    d.pop[1]    ? d.pop[0]                : null,
+            gdpcap: d.gdpcap[1] ? d.gdpcap[0]/d.gdpcap[1] : null,
+            co2_pc: d.co2_pc[1] ? d.co2_pc[0]/d.co2_pc[1] : null
+          })).sort((a,b) => a.t - b.t);
+        }
+        return idx.countryMap[c] || [];
+      };
+      const expS = pick(exp), impS = pick(imp);
+      const eL = exp === "All" ? "Exp avg" : exp, iL = imp === "All" ? "Imp avg" : imp;
+      const mk = (series, field, label, color, dash) => {
+        const clean = series.filter(d => d[field] !== null && d[field] !== undefined);
+        return { x: clean.map(d => d.t), y: clean.map(d => d[field]), type: "scatter", mode: "lines",
+                 name: label, yaxis: "y2", line: { color, width: 2, dash }, opacity: 0.95,
+                 connectgaps: true, hovertemplate: `%{x}<br>${label}: %{y:.3s}<extra></extra>` };
+      };
+      const out = [];
+      if (indGDP.checked)    { out.push(mk(expS,"gdp",`${eL} GDP`,"#16a34a","dash"),    mk(impS,"gdp",`${iL} GDP`,"#15803d","dot")); }
+      if (indGDPCAP.checked) { out.push(mk(expS,"gdpcap",`${eL} GDP/cap`,"#f59e0b","dash"), mk(impS,"gdpcap",`${iL} GDP/cap`,"#d97706","dot")); }
+      if (indPOP.checked)    { out.push(mk(expS,"pop",`${eL} Pop`,"#7c3aed","dash"),    mk(impS,"pop",`${iL} Pop`,"#6d28d9","dot")); }
+      if (indCO2.checked)    { out.push(mk(expS,"co2_pc",`${eL} CO2/cap`,"#0e7490","dash"), mk(impS,"co2_pc",`${iL} CO2/cap`,"#155e75","dot")); }
+      return out.filter(t => t.x.length && t.y.length);
+    }
+
+    // ---------- render ----------
+    async function renderPlot() {
+      if (!META) return;
+      const exp = exporterDD.getValue(), imp = importerDD.getValue(), prod = productDD.getValue();
+      const models = getSelectedModels();
+      if (!models.length) { setStatus("Select at least one model layer."); return; }
+
+      const prodItem = (META.products || []).find(p => String(p.k) === String(prod));
+      const prodLabel = ANALYTICAL_GROUPS[prod]?.label || prodItem?.label || prod;
+
+      try {
+        setStatus("Updating chart&hellip;");
+        const { hist, forecasts, mode, missing } = await getSelectedSeries();
+        const traces = [];
+
+        if (hist.length) {
+          traces.push({ x: hist.map(d => d.t), y: hist.map(d => d.value), type: "scatter",
+                        mode: "lines+markers", name: "Historical trade",
+                        line: { color: "black", width: 3 }, marker: { size: 5 } });
+        }
+        forecasts.forEach(f => {
+          traces.push({ x: f.series.map(d => d.t), y: f.series.map(d => d.pred), type: "scatter",
+                        mode: "lines", name: f.label, line: { color: f.color, width: 3 } });
+        });
+        traces.push(...indicatorTraces(exp, imp, models));
+
+        Plotly.newPlot("chart", traces, {
+          title: { text: `${exp} → ${imp} | ${prodLabel}`, x: 0, xanchor: "left", font: { size: 20 } },
+          xaxis: { title: "Year" },
+          yaxis: { title: "Trade value (constant 2015 USD)" },
+          yaxis2: { title: "Indicator value", overlaying: "y", side: "right", showgrid: false },
+          template: "simple_white", height: 680, margin: { l: 75, r: 190, t: 80, b: 60 },
+          legend: { orientation: "v", x: 1.02, xanchor: "left", y: 1, yanchor: "top",
+                    bgcolor: "rgba(255,255,255,0.85)", bordercolor: "#e5e7eb", borderwidth: 1, font: { size: 12 } },
+          hovermode: "x unified"
+        }, { responsive: true, displayModeBar: true });
+
+        const expU2 = (META.exporters || []).filter(v => v !== "All");
+        const impU2 = (META.importers || []).filter(v => v !== "All");
+        const regNote = [
+          (isRegion(exp) || exp === "EU27") ? `${exp} = ${(resolveCountries(exp, expU2)||[]).length} exporters` : null,
+          (isRegion(imp) || imp === "EU27") ? `${imp} = ${(resolveCountries(imp, impU2)||[]).length} importers` : null
+        ].filter(Boolean).join(", ");
+        const names = models.map(k => MODEL_CONFIG[k].label).join(", ");
+        const miss = missing.length ? `<br>Missing: <strong>${missing.join(" | ")}</strong>` : "";
+        const modeLabel = { summary: "Summary view", pair: "Pair view",
+                            "exporter-world": "Exports to world", empty: "No data" }[mode] || mode;
+        setStatus(`${modeLabel}: <strong>${exp}</strong> → <strong>${imp}</strong> | <strong>${prodLabel}</strong>` +
+                  `<br>Layers: <strong>${names}</strong>` +
+                  (regNote ? `<br>Aggregated: <strong>${regNote}</strong>` : "") + miss);
+      } catch (err) {
+        console.error("Render error:", err);
+        setStatus(`Runtime error: <strong>${err.message}</strong>`);
+      }
+    }
+
+    function resetFilters() {
+      exporterDD.setValue("All"); importerDD.setValue("All"); productDD.setValue("All");
+      MODEL_KEYS.forEach(k => {
+        const el = document.getElementById(`chk_${k}`);
+        if (el) el.checked = DEFAULT_ON.includes(k);
+      });
+      [indGDP, indGDPCAP, indPOP, indCO2].forEach(el => { el.checked = false; });
+      PAIR_CACHE = {};
+      renderPlot();
+    }
+
+    async function init() {
+      buildModelChecks();
+      try {
+        const loaded = await loadBaseData();
+        initDropdowns();
+        if (loaded.length < MODEL_KEYS.length) {
+          const miss = MODEL_KEYS.filter(k => !loaded.includes(k)).map(k => MODEL_CONFIG[k].label);
+          console.warn("layers not found:", miss);
+        }
+        await renderPlot();
+      } catch (err) {
+        console.error("Initialization error:", err);
+        setStatus(`Could not load data files. <strong>${err.message}</strong><br>` +
+                  `Expected the data files beside this file. ` +
+                  `Serve over http:// &mdash; loading data does not work from file://`);
+      }
+    }
+
+    updateBtn.addEventListener("click", renderPlot);
+    resetBtn.addEventListener("click", resetFilters);
+    init();
+  </script>
+</body>
+</html>

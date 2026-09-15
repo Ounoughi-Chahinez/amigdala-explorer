@@ -645,17 +645,30 @@
                                               placeholder: "Select product", searchPlaceholder: "Search product or HS6..." });
     }
 
-    // ---------- data loading ----------
+        // ---------- data loading ----------
     async function loadBaseData() {
-      const metaRes = await fetchJsonGz(MODEL_CONFIG[META_SOURCE].metaPath);
-      if (!metaRes.ok) throw new Error(`Cannot load meta: ${metaRes.error}`);
-      META = metaRes.data;
-
+      // Load every layer's summary file first. The dropdown lists live inside these,
+      // so the separate meta file is an optimisation rather than a requirement.
       const loaded = [];
       for (const k of MODEL_KEYS) {
         const r = await fetchJsonGz(MODEL_CONFIG[k].smallPath);
         MODEL_SMALLS[k] = r.ok ? r.data : null;
         if (r.ok) loaded.push(k);
+      }
+      if (!loaded.length) {
+        throw new Error("No model layers could be loaded. Check that the "
+                      + "trade_dashboard_small_*.json.gz files are deployed beside index.html.");
+      }
+
+      // Prefer the meta file when it is present; fall back to the summary file it belongs to,
+      // then to any layer that did load.
+      const metaRes = await fetchJsonGz(MODEL_CONFIG[META_SOURCE].metaPath);
+      if (metaRes.ok) {
+        META = metaRes.data;
+      } else {
+        const src = MODEL_SMALLS[META_SOURCE] || MODEL_SMALLS[loaded[0]];
+        META = { exporters: src.exporters, importers: src.importers, products: src.products };
+        console.info("meta file not found; dropdown lists taken from the summary file instead");
       }
 
       await Promise.all(MODEL_KEYS.map(async k => {

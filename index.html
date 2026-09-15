@@ -346,7 +346,7 @@
     // tag = lowercase key; drives every path
     // Data files sit beside index.html. Set to "webapp_data_compact/" if you
     // keep them in a subfolder instead.
-    const DATA_BASE = "https://raw.githubusercontent.com/Ounoughi-Chahinez/amigdala-explorer/main/";
+    const DATA_BASE = "";
 
     Object.keys(MODEL_CONFIG).forEach(k => {
       const tag = k.toLowerCase();
@@ -364,13 +364,24 @@
     // ---- EXIOMOD regions: 17 aggregates over the BACI countries ----
     const REGIONS = {"CHN":["CHN"],"EUBA":["EST","LTU","LVA"],"EUBE":["BEL","LUX","NLD"],"EUCN":["CSK","CZE","POL","SVK"],"EUCS":["HRV","HUN","SVN"],"EUDE":["AUT","DDR","DEU"],"EUEA":["BGR","ROU"],"EUFR":["FRA","IRL"],"EUNO":["DNK","FIN","SWE"],"EUSE":["CYP","GRC","MLT"],"EUSW":["ESP","ITA","PRT"],"RWA":["AFG","ASM","AUS","BGD","BRN","BTN","CCK","COK","CXR","FJI","FSM","GUM","HKG","IDN","IND","IOT","IRN","JPN","KAZ","KGZ","KHM","KIR","KOR","LAO","LKA","MAC","MDV","MHL","MMR","MNG","MNP","MYS","NCL","NFK","NIU","NPL","NRU","NZL","PAK","PCN","PHL","PLW","PNG","PRK","PYF","RUS","SGP","SLB","SUN","THA","TJK","TKL","TKM","TLS","TON","TUV","UZB","VNM","VUT","WLF","WSM"],"RWE":["ALB","AND","BIH","BLR","CHE","GBR","GIB","ISL","MDA","MKD","MNE","NOR","SCG","SMR","SRB","UKR"],"RWF":["AGO","ATF","BDI","BEN","BFA","BWA","CAF","CIV","CMR","COD","COG","COM","CPV","DJI","DZA","EGY","ERI","ETH","GAB","GHA","GIN","GMB","GNB","GNQ","KEN","LBR","LBY","LSO","MAR","MDG","MLI","MOZ","MRT","MUS","MWI","MYT","NAM","NER","NGA","RWA","SDN","SEN","SHN","SLE","SOM","SSD","STP","SWZ","SYC","TCD","TGO","TUN","TZA","UGA","ZAF","ZMB","ZWE"],"RWM":["ARE","ARM","AZE","BHR","GEO","IRQ","ISR","JOR","KWT","LBN","OMN","PSE","QAT","SAU","SYR","TUR","YEM"],"RWNA":["BMU","CAN","GRL","SPM","USA"],"RWSA":["ABW","AIA","ANT","ARG","ATG","BES","BHS","BLM","BLZ","BOL","BRA","BRB","CHL","COL","CRI","CUB","CUW","CYM","DMA","DOM","ECU","FLK","GRD","GTM","GUY","HND","HTI","JAM","KNA","LCA","MEX","MSR","NIC","PAN","PER","PRY","SLV","SUR","SXM","TCA","TTO","URY","VCT","VEN","VGB"]};
 
+    // EXIOMOD region names and their member countries, as defined by the project
     const REGION_LABEL = {
-      CHN:"China", EUBA:"EU Baltic", EUBE:"EU Benelux", EUCN:"EU Central-North",
-      EUCS:"EU Central-South", EUDE:"EU Germany & Austria", EUEA:"EU East",
-      EUFR:"EU France & Ireland", EUNO:"EU Nordic", EUSE:"EU South-East",
-      EUSW:"EU South-West", RWA:"RoW Asia-Pacific", RWE:"RoW Europe",
-      RWF:"RoW Africa", RWM:"RoW Middle East", RWNA:"RoW North America",
-      RWSA:"RoW South America"
+      EUNO: "Scandinavia",            EUBE: "Benelux",
+      EUDE: "Germany & Austria",      EUFR: "France & Ireland",
+      EUCN: "Central-Northern EU",    EUCS: "Central-Southern EU",
+      EUBA: "Baltic",                 EUEA: "Eastern EU",
+      EUSW: "South-Western EU",       EUSE: "South-Eastern EU",
+      CHN:  "China",                  RWNA: "North America",
+      RWSA: "South America",          RWA:  "Rest of Asia",
+      RWE:  "Rest of Europe",         RWF:  "Africa",
+      RWM:  "Middle East"
+    };
+    // short member list shown after the name, for the EU regions where it is informative
+    const REGION_MEMBERS = {
+      EUNO: "DK, FI, SE",   EUBE: "NL, BE, LU",  EUDE: "DE, AT",
+      EUFR: "FR, IE",       EUCN: "PL, CZ, SK",  EUCS: "HU, SI, HR",
+      EUBA: "EE, LT, LV",   EUEA: "BG, RO",      EUSW: "ES, PT, IT",
+      EUSE: "CY, EL, MT"
     };
     const EU_REGION_KEYS = Object.keys(REGIONS).filter(r => r.startsWith("EU"));
     const isRegion = v => Object.prototype.hasOwnProperty.call(REGIONS, v);
@@ -607,11 +618,12 @@
     document.addEventListener("click", e => { if (!e.target.closest(".dropdown")) closeAllDropdowns(); });
 
     function regionItems(universe) {
-      const items = [{ value: "EU27", label: "\u25c6 EU aggregate (all EU regions)" }];
+      const items = [{ value: "EU27", label: "\u25c6 EU \u2014 all ten EU regions" }];
       Object.keys(REGIONS).sort().forEach(r => {
         const n = regionMembers(r, universe).length;
         if (!n) return;
-        items.push({ value: r, label: `\u25c6 ${r} \u2014 ${REGION_LABEL[r] || r} (${n})` });
+        const detail = REGION_MEMBERS[r] || `${n} countries`;
+        items.push({ value: r, label: `\u25c6 ${r} \u2014 ${REGION_LABEL[r] || r} (${detail})` });
       });
       return items;
     }

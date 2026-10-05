@@ -704,6 +704,59 @@
     const MAX_PAIR_LOADS = 1500;
     const FLOW_CONCURRENCY = 8;
 
+    // ---------- precomputed world aggregates ----------
+    // One small file per model (trade_dashboard_worldagg_<tag>.json.gz) holds
+    // exporter->world and importer->world totals for "All" + the 8 analytical
+    // groups. Lets region/country-to-world-by-group views load from ONE file
+    // instead of thousands of per-pair fetches. Built by build_world_aggregates.py.
+    const WORLD_AGG = {};   // tag -> data | null (null = not deployed)
+    async function loadWorldAgg(tag) {
+      if (tag in WORLD_AGG) return WORLD_AGG[tag];
+      const r = await fetchJsonGz(`${DATA_BASE}trade_dashboard_worldagg_${tag}.json.gz`);
+      WORLD_AGG[tag] = r.ok ? r.data : null;
+      return WORLD_AGG[tag];
+    }
+    // product -> world-aggregate key. "All" and analytical groups are covered;
+    // a single HS6 is not (returns null -> caller falls back to pair files).
+    function prodToPkey(prod) {
+      if (prod === "All") return "All";
+      if (isGroup(prod)) return prod;
+      return null;
+    }
+    // sum one side of a world-aggregate over a country / region / EU27 selection
+    function worldAggSeries(wa, side, sel, pkey, universe) {
+      if (!wa || !wa[side]) return { hist: [], forecast: [] };
+      const block = wa[side];
+      const countries = (!isRegion(sel) && sel !== "EU27") ? [sel] : (resolveCountries(sel, universe) || []);
+      const hParts = [], cParts = [];
+      countries.forEach(c => {
+        const e = block[c] && block[c][pkey];
+        if (!e) return;
+        if (e.h && e.h.y && e.h.y.length) hParts.push({ y: e.h.y, v: e.h.v.map(v => v / TRADE_SCALE) });
+        if (e.c && e.c.y && e.c.y.length) cParts.push({ y: e.c.y, v: e.c.v.map(v => v / TRADE_SCALE) });
+      });
+      return { hist: toHist(sumCompact(hParts)), forecast: toFore(sumCompact(cParts)) };
+    }
+    // Build the full {hist,forecasts,mode,missing} for a to-world view from the
+    // precomputed aggregate. Returns null if ANY selected model lacks the file,
+    // so the caller can fall back to the per-pair path.
+    async function buildWorldAgg(side, sel, prod, models) {
+      const pkey = prodToPkey(prod); if (!pkey) return null;
+      const universe = (side === "exporter" ? (META.exporters || []) : (META.importers || []))
+                         .filter(x => x !== "All");
+      const forecasts = [], missing = []; let hw = [];
+      for (const k of models) {
+        const wa = await loadWorldAgg(MODEL_CONFIG[k].tag);
+        if (!wa) return null;
+        const { hist: h, forecast } = worldAggSeries(wa, side, sel, pkey, universe);
+        if (!hw.length && h.length) hw = h;
+        const f = addConnector(h.length ? h : hw, forecast);
+        if (f.length) forecasts.push({ key: k, label: MODEL_CONFIG[k].label, color: MODEL_CONFIG[k].color, series: f });
+        else missing.push(MODEL_CONFIG[k].label);
+      }
+      return { hist: hw, forecasts, mode: side === "exporter" ? "exporter-world" : "importer-world", missing };
+    }
+
     async function loadPairFile(modelKey, exporter, importer) {
       const key = `${modelKey}__${exporter}__${importer}`;
       if (PAIR_CACHE[key]) return PAIR_CACHE[key];
@@ -815,6 +868,9 @@
       }
 
       if (exp !== "All" && imp === "All" && prod !== "All") {
+        // fast path: precomputed exporter->world aggregate (one file per model)
+        const wa = await buildWorldAgg("exporter", exp, prod, models);
+        if (wa) return wa;
         if (!(await probeFlows()))
           return { hist: [], forecasts: [], mode: "no-flows", missing: [] };
         const nImp = ((META.importers || []).filter(x => x !== "All")).length;
@@ -831,6 +887,13 @@
           else missing.push(MODEL_CONFIG[k].label);
         }
         return { hist: hw, forecasts, mode: "exporter-world", missing };
+      }
+
+      if (exp === "All" && imp !== "All" && prod !== "All") {
+        // importer <- world, by product (previously unsupported). Fast path only.
+        const wa = await buildWorldAgg("importer", imp, prod, models);
+        if (wa) return wa;
+        return { hist: [], forecasts: [], mode: "need-agg", missing: [] };
       }
 
       if (exp !== "All" && imp !== "All") {
@@ -975,8 +1038,19 @@
           Plotly.purge("chart");
           return;
         }
+        if (mode === "need-agg") {
+          setStatus(
+            "<strong>This view needs the world-aggregate file.</strong><br>" +
+            "Importer-from-world by product (e.g. EU steel imports) reads " +
+            "<code>trade_dashboard_worldagg_&lt;model&gt;.json.gz</code>, which is not deployed yet. " +
+            "Run <code>build_world_aggregates.py</code> and upload the files, or set the product to " +
+            "<strong>All</strong> for the summary series.");
+          Plotly.purge("chart");
+          return;
+        }
         const modeLabel = { summary: "Summary view", pair: "Pair view",
-                            "exporter-world": "Exports to world", empty: "No data" }[mode] || mode;
+                            "exporter-world": "Exports to world", "importer-world": "Imports from world",
+                            empty: "No data" }[mode] || mode;
         setStatus(`${modeLabel}: <strong>${exp}</strong> → <strong>${imp}</strong> | <strong>${prodLabel}</strong>` +
                   `<br>Layers: <strong>${names}</strong>` +
                   (regNote ? `<br>Aggregated: <strong>${regNote}</strong>` : "") + miss);

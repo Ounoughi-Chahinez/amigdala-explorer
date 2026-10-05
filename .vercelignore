@@ -1,1 +1,4 @@
 data_*/
+features_*.csv
+models_manifest.json
+.git/

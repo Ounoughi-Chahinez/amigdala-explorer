@@ -275,7 +275,7 @@
           <table>
             <tr><th>Layer</th><th>GDP (EXIOMOD)</th><th>CO&#8322; (TIAM)</th><th>Sectoral growth</th></tr>
             <tr><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td></tr>
-            <tr><td>Base</td><td>off</td><td>off</td><td>off</td></tr>
+            <tr><td>SSP2</td><td>off</td><td>off</td><td>off</td></tr>
             <tr><td>GDP only (EXIOMOD)</td><td>Scenario 1</td><td>off</td><td>off</td></tr>
             <tr><td>CO&#8322; only (TIAM)</td><td>off</td><td>Scenario 1</td><td>off</td></tr>
             <tr><td>Sector growth only</td><td>off</td><td>off</td><td>Scenario 1</td></tr>
@@ -337,7 +337,7 @@
       SW_SCENARIO_8:         { label: "Scenario 8",             color: "#b91c1c", group: "Scenarios" },
       SW_SCENARIO_10:        { label: "Scenario 10 (ref)",      color: "#0f766e", group: "Scenarios" },
       SW_SCENARIO_15:        { label: "Scenario 15",            color: "#a16207", group: "Scenarios" },
-      BASE:                  { label: "Base (no channels)",     color: "#64748b", group: "Channel isolation" },
+      BASE:                  { label: "SSP2 (no channels)",     color: "#64748b", group: "Channel isolation" },
       GDP_ONLY:              { label: "GDP only (EXIOMOD)",     color: "#0369a1", group: "Channel isolation" },
       CO2_ONLY:              { label: "CO\u2082 only (TIAM)",   color: "#c2410c", group: "Channel isolation" },
       SW_ONLY:               { label: "Sector growth only",     color: "#be185d", group: "Channel isolation" }
@@ -364,14 +364,27 @@
     // ---- EXIOMOD regions: 17 aggregates over the BACI countries ----
     const REGIONS = {"CHN":["CHN"],"EUBA":["EST","LTU","LVA"],"EUBE":["BEL","LUX","NLD"],"EUCN":["CSK","CZE","POL","SVK"],"EUCS":["HRV","HUN","SVN"],"EUDE":["AUT","DDR","DEU"],"EUEA":["BGR","ROU"],"EUFR":["FRA","IRL"],"EUNO":["DNK","FIN","SWE"],"EUSE":["CYP","GRC","MLT"],"EUSW":["ESP","ITA","PRT"],"RWA":["AFG","ASM","AUS","BGD","BRN","BTN","CCK","COK","CXR","FJI","FSM","GUM","HKG","IDN","IND","IOT","IRN","JPN","KAZ","KGZ","KHM","KIR","KOR","LAO","LKA","MAC","MDV","MHL","MMR","MNG","MNP","MYS","NCL","NFK","NIU","NPL","NRU","NZL","PAK","PCN","PHL","PLW","PNG","PRK","PYF","RUS","SGP","SLB","SUN","THA","TJK","TKL","TKM","TLS","TON","TUV","UZB","VNM","VUT","WLF","WSM"],"RWE":["ALB","AND","BIH","BLR","CHE","GBR","GIB","ISL","MDA","MKD","MNE","NOR","SCG","SMR","SRB","UKR"],"RWF":["AGO","ATF","BDI","BEN","BFA","BWA","CAF","CIV","CMR","COD","COG","COM","CPV","DJI","DZA","EGY","ERI","ETH","GAB","GHA","GIN","GMB","GNB","GNQ","KEN","LBR","LBY","LSO","MAR","MDG","MLI","MOZ","MRT","MUS","MWI","MYT","NAM","NER","NGA","RWA","SDN","SEN","SHN","SLE","SOM","SSD","STP","SWZ","SYC","TCD","TGO","TUN","TZA","UGA","ZAF","ZMB","ZWE"],"RWM":["ARE","ARM","AZE","BHR","GEO","IRQ","ISR","JOR","KWT","LBN","OMN","PSE","QAT","SAU","SYR","TUR","YEM"],"RWNA":["BMU","CAN","GRL","SPM","USA"],"RWSA":["ABW","AIA","ANT","ARG","ATG","BES","BHS","BLM","BLZ","BOL","BRA","BRB","CHL","COL","CRI","CUB","CUW","CYM","DMA","DOM","ECU","FLK","GRD","GTM","GUY","HND","HTI","JAM","KNA","LCA","MEX","MSR","NIC","PAN","PER","PRY","SLV","SUR","SXM","TCA","TTO","URY","VCT","VEN","VGB"]};
 
-    const REGION_LABEL = {
-      CHN:"China", EUBA:"EU Baltic", EUBE:"EU Benelux", EUCN:"EU Central-North",
-      EUCS:"EU Central-South", EUDE:"EU Germany & Austria", EUEA:"EU East",
-      EUFR:"EU France & Ireland", EUNO:"EU Nordic", EUSE:"EU South-East",
-      EUSW:"EU South-West", RWA:"RoW Asia-Pacific", RWE:"RoW Europe",
-      RWF:"RoW Africa", RWM:"RoW Middle East", RWNA:"RoW North America",
-      RWSA:"RoW South America"
+
+
+      const REGION_LABEL = {
+      EUNO: "Scandinavia",            EUBE: "Benelux",
+      EUDE: "Germany & Austria",      EUFR: "France & Ireland",
+      EUCN: "Central-Northern EU",    EUCS: "Central-Southern EU",
+      EUBA: "Baltic",                 EUEA: "Eastern EU",
+      EUSW: "South-Western EU",       EUSE: "South-Eastern EU",
+      CHN:  "China",                  RWNA: "North America",
+      RWSA: "South America",          RWA:  "Rest of Asia",
+      RWE:  "Rest of Europe",         RWF:  "Africa",
+      RWM:  "Middle East"
     };
+    // short member list shown after the name, for the EU regions where it is informative
+    const REGION_MEMBERS = {
+      EUNO: "DK, FI, SE",   EUBE: "NL, BE, LU",  EUDE: "DE, AT",
+      EUFR: "FR, IE",       EUCN: "PL, CZ, SK",  EUCS: "HU, SI, HR",
+      EUBA: "EE, LT, LV",   EUEA: "BG, RO",      EUSW: "ES, PT, IT",
+      EUSE: "CY, EL, MT"
+    };
+
     const EU_REGION_KEYS = Object.keys(REGIONS).filter(r => r.startsWith("EU"));
     const isRegion = v => Object.prototype.hasOwnProperty.call(REGIONS, v);
     function regionMembers(r, universe) {
@@ -671,6 +684,79 @@
       return FLOWS_AVAILABLE;
     }
 
+    // Bounded-concurrency map: run at most `n` async tasks at once (prevents
+    // firing hundreds of simultaneous gzip fetches, which crashes the tab).
+    async function mapPool(items, n, fn) {
+      const out = new Array(items.length);
+      let idx = 0;
+      async function worker() {
+        while (idx < items.length) {
+          const cur = idx++;
+          out[cur] = await fn(items[cur], cur);
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker));
+      return out;
+    }
+    // Hard ceiling on per-render pair-file loads. Region/exporter + product +
+    // "All importers" can imply thousands of files; past this we show guidance
+    // instead of loading them and killing the browser.
+    const MAX_PAIR_LOADS = 1500;
+    const FLOW_CONCURRENCY = 8;
+
+    // ---------- precomputed world aggregates ----------
+    // One small file per model (trade_dashboard_worldagg_<tag>.json.gz) holds
+    // exporter->world and importer->world totals for "All" + the 8 analytical
+    // groups. Lets region/country-to-world-by-group views load from ONE file
+    // instead of thousands of per-pair fetches. Built by build_world_aggregates.py.
+    const WORLD_AGG = {};   // tag -> data | null (null = not deployed)
+    async function loadWorldAgg(tag) {
+      if (tag in WORLD_AGG) return WORLD_AGG[tag];
+      const r = await fetchJsonGz(`${DATA_BASE}trade_dashboard_worldagg_${tag}.json.gz`);
+      WORLD_AGG[tag] = r.ok ? r.data : null;
+      return WORLD_AGG[tag];
+    }
+    // product -> world-aggregate key. "All" and analytical groups are covered;
+    // a single HS6 is not (returns null -> caller falls back to pair files).
+    function prodToPkey(prod) {
+      if (prod === "All") return "All";
+      if (isGroup(prod)) return prod;
+      return null;
+    }
+    // sum one side of a world-aggregate over a country / region / EU27 selection
+    function worldAggSeries(wa, side, sel, pkey, universe) {
+      if (!wa || !wa[side]) return { hist: [], forecast: [] };
+      const block = wa[side];
+      const countries = (!isRegion(sel) && sel !== "EU27") ? [sel] : (resolveCountries(sel, universe) || []);
+      const hParts = [], cParts = [];
+      countries.forEach(c => {
+        const e = block[c] && block[c][pkey];
+        if (!e) return;
+        if (e.h && e.h.y && e.h.y.length) hParts.push({ y: e.h.y, v: e.h.v.map(v => v / TRADE_SCALE) });
+        if (e.c && e.c.y && e.c.y.length) cParts.push({ y: e.c.y, v: e.c.v.map(v => v / TRADE_SCALE) });
+      });
+      return { hist: toHist(sumCompact(hParts)), forecast: toFore(sumCompact(cParts)) };
+    }
+    // Build the full {hist,forecasts,mode,missing} for a to-world view from the
+    // precomputed aggregate. Returns null if ANY selected model lacks the file,
+    // so the caller can fall back to the per-pair path.
+    async function buildWorldAgg(side, sel, prod, models) {
+      const pkey = prodToPkey(prod); if (!pkey) return null;
+      const universe = (side === "exporter" ? (META.exporters || []) : (META.importers || []))
+                         .filter(x => x !== "All");
+      const forecasts = [], missing = []; let hw = [];
+      for (const k of models) {
+        const wa = await loadWorldAgg(MODEL_CONFIG[k].tag);
+        if (!wa) return null;
+        const { hist: h, forecast } = worldAggSeries(wa, side, sel, pkey, universe);
+        if (!hw.length && h.length) hw = h;
+        const f = addConnector(h.length ? h : hw, forecast);
+        if (f.length) forecasts.push({ key: k, label: MODEL_CONFIG[k].label, color: MODEL_CONFIG[k].color, series: f });
+        else missing.push(MODEL_CONFIG[k].label);
+      }
+      return { hist: hw, forecasts, mode: side === "exporter" ? "exporter-world" : "importer-world", missing };
+    }
+
     async function loadPairFile(modelKey, exporter, importer) {
       const key = `${modelKey}__${exporter}__${importer}`;
       if (PAIR_CACHE[key]) return PAIR_CACHE[key];
@@ -731,13 +817,13 @@
       const importers = (META.importers || []).filter(x => x !== "All");
       const exporters = resolveCountries(exporter, expU) || [];
       for (const e of exporters) {
-        await Promise.all(importers.map(async imp => {
+        await mapPool(importers, FLOW_CONCURRENCY, async imp => {
           const pd = await loadPairFile(modelKey, e, imp);
           if (!pd || pd.__missing) return;
           const { hist, forecast } = pairSeries(pd, prod);
           if (hist.length)     hParts.push({ y: hist.map(d => d.t),     v: hist.map(d => d.value / TRADE_SCALE) });
           if (forecast.length) cParts.push({ y: forecast.map(d => d.t), v: forecast.map(d => d.pred / TRADE_SCALE) });
-        }));
+        });
       }
       return { hist: toHist(sumCompact(hParts)), forecast: toFore(sumCompact(cParts)) };
     }
@@ -748,13 +834,13 @@
       const es = resolveCountries(exp, expU) || [], is = resolveCountries(imp, impU) || [];
       const hParts = [], cParts = [];
       for (const e of es) {
-        await Promise.all(is.map(async i => {
+        await mapPool(is, FLOW_CONCURRENCY, async i => {
           const pd = await loadPairFile(modelKey, e, i);
           if (!pd || pd.__missing) return;
           const { hist, forecast } = pairSeries(pd, prod);
           if (hist.length)     hParts.push({ y: hist.map(d => d.t),     v: hist.map(d => d.value / TRADE_SCALE) });
           if (forecast.length) cParts.push({ y: forecast.map(d => d.t), v: forecast.map(d => d.pred / TRADE_SCALE) });
-        }));
+        });
       }
       return { hist: toHist(sumCompact(hParts)), forecast: toFore(sumCompact(cParts)) };
     }
@@ -782,8 +868,16 @@
       }
 
       if (exp !== "All" && imp === "All" && prod !== "All") {
+        // fast path: precomputed exporter->world aggregate (one file per model)
+        const wa = await buildWorldAgg("exporter", exp, prod, models);
+        if (wa) return wa;
         if (!(await probeFlows()))
           return { hist: [], forecasts: [], mode: "no-flows", missing: [] };
+        const nImp = ((META.importers || []).filter(x => x !== "All")).length;
+        const nExp = (resolveCountries(exp, (META.exporters||[]).filter(x=>x!=="All")) || []).length;
+        if (nExp * nImp * models.length > MAX_PAIR_LOADS)
+          return { hist: [], forecasts: [], mode: "too-large", missing: [],
+                   loadInfo: { pairs: nExp * nImp, models: models.length } };
         let hw = [];
         for (const k of models) {
           const { hist: h, forecast } = await exporterToWorld(k, exp, prod);
@@ -795,10 +889,24 @@
         return { hist: hw, forecasts, mode: "exporter-world", missing };
       }
 
+      if (exp === "All" && imp !== "All" && prod !== "All") {
+        // importer <- world, by product (previously unsupported). Fast path only.
+        const wa = await buildWorldAgg("importer", imp, prod, models);
+        if (wa) return wa;
+        return { hist: [], forecasts: [], mode: "need-agg", missing: [] };
+      }
+
       if (exp !== "All" && imp !== "All") {
         if (!(await probeFlows()))
           return { hist: [], forecasts: [], mode: "no-flows", missing: [] };
         const aggregated = isRegion(exp) || isRegion(imp) || exp === "EU27" || imp === "EU27";
+        if (aggregated) {
+          const nE = (resolveCountries(exp, (META.exporters||[]).filter(x=>x!=="All")) || [exp]).length;
+          const nI = (resolveCountries(imp, (META.importers||[]).filter(x=>x!=="All")) || [imp]).length;
+          if (nE * nI * models.length > MAX_PAIR_LOADS)
+            return { hist: [], forecasts: [], mode: "too-large", missing: [],
+                     loadInfo: { pairs: nE * nI, models: models.length } };
+        }
         let hp = [];
         for (const k of models) {
           let mh, forecast;
@@ -877,7 +985,7 @@
 
       try {
         setStatus("Updating chart&hellip;");
-        const { hist, forecasts, mode, missing } = await getSelectedSeries();
+        const { hist, forecasts, mode, missing, loadInfo } = await getSelectedSeries();
         const traces = [];
 
         if (hist.length) {
@@ -916,8 +1024,33 @@
                     "or importer to <strong>All</strong>, or pick a product or analytical group.");
           return;
         }
+        if (mode === "too-large") {
+          const p = loadInfo ? loadInfo.pairs.toLocaleString() : "many";
+          const tot = loadInfo ? (loadInfo.pairs * loadInfo.models).toLocaleString() : "many";
+          setStatus(
+            `<strong>That view is too large to build in the browser.</strong><br>` +
+            `A region/exporter with a specific product and <em>All</em> importers needs ` +
+            `<strong>${p}</strong> country-pair files per layer (<strong>${tot}</strong> total here) — ` +
+            `loading them all would freeze the tab, so it was not attempted.<br>` +
+            `To see it: pick a <strong>specific importer</strong>, choose a <strong>single model layer</strong>, ` +
+            `or set the product to <strong>All</strong> (those read one summary file). ` +
+            `For region-to-world by product across all scenarios, use the notebook figure instead.`);
+          Plotly.purge("chart");
+          return;
+        }
+        if (mode === "need-agg") {
+          setStatus(
+            "<strong>This view needs the world-aggregate file.</strong><br>" +
+            "Importer-from-world by product (e.g. EU steel imports) reads " +
+            "<code>trade_dashboard_worldagg_&lt;model&gt;.json.gz</code>, which is not deployed yet. " +
+            "Run <code>build_world_aggregates.py</code> and upload the files, or set the product to " +
+            "<strong>All</strong> for the summary series.");
+          Plotly.purge("chart");
+          return;
+        }
         const modeLabel = { summary: "Summary view", pair: "Pair view",
-                            "exporter-world": "Exports to world", empty: "No data" }[mode] || mode;
+                            "exporter-world": "Exports to world", "importer-world": "Imports from world",
+                            empty: "No data" }[mode] || mode;
         setStatus(`${modeLabel}: <strong>${exp}</strong> → <strong>${imp}</strong> | <strong>${prodLabel}</strong>` +
                   `<br>Layers: <strong>${names}</strong>` +
                   (regNote ? `<br>Aggregated: <strong>${regNote}</strong>` : "") + miss);

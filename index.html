@@ -684,6 +684,26 @@
       return FLOWS_AVAILABLE;
     }
 
+    // Bounded-concurrency map: run at most `n` async tasks at once (prevents
+    // firing hundreds of simultaneous gzip fetches, which crashes the tab).
+    async function mapPool(items, n, fn) {
+      const out = new Array(items.length);
+      let idx = 0;
+      async function worker() {
+        while (idx < items.length) {
+          const cur = idx++;
+          out[cur] = await fn(items[cur], cur);
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker));
+      return out;
+    }
+    // Hard ceiling on per-render pair-file loads. Region/exporter + product +
+    // "All importers" can imply thousands of files; past this we show guidance
+    // instead of loading them and killing the browser.
+    const MAX_PAIR_LOADS = 1500;
+    const FLOW_CONCURRENCY = 8;
+
     async function loadPairFile(modelKey, exporter, importer) {
       const key = `${modelKey}__${exporter}__${importer}`;
       if (PAIR_CACHE[key]) return PAIR_CACHE[key];
@@ -744,13 +764,13 @@
       const importers = (META.importers || []).filter(x => x !== "All");
       const exporters = resolveCountries(exporter, expU) || [];
       for (const e of exporters) {
-        await Promise.all(importers.map(async imp => {
+        await mapPool(importers, FLOW_CONCURRENCY, async imp => {
           const pd = await loadPairFile(modelKey, e, imp);
           if (!pd || pd.__missing) return;
           const { hist, forecast } = pairSeries(pd, prod);
           if (hist.length)     hParts.push({ y: hist.map(d => d.t),     v: hist.map(d => d.value / TRADE_SCALE) });
           if (forecast.length) cParts.push({ y: forecast.map(d => d.t), v: forecast.map(d => d.pred / TRADE_SCALE) });
-        }));
+        });
       }
       return { hist: toHist(sumCompact(hParts)), forecast: toFore(sumCompact(cParts)) };
     }
@@ -761,13 +781,13 @@
       const es = resolveCountries(exp, expU) || [], is = resolveCountries(imp, impU) || [];
       const hParts = [], cParts = [];
       for (const e of es) {
-        await Promise.all(is.map(async i => {
+        await mapPool(is, FLOW_CONCURRENCY, async i => {
           const pd = await loadPairFile(modelKey, e, i);
           if (!pd || pd.__missing) return;
           const { hist, forecast } = pairSeries(pd, prod);
           if (hist.length)     hParts.push({ y: hist.map(d => d.t),     v: hist.map(d => d.value / TRADE_SCALE) });
           if (forecast.length) cParts.push({ y: forecast.map(d => d.t), v: forecast.map(d => d.pred / TRADE_SCALE) });
-        }));
+        });
       }
       return { hist: toHist(sumCompact(hParts)), forecast: toFore(sumCompact(cParts)) };
     }
@@ -797,6 +817,11 @@
       if (exp !== "All" && imp === "All" && prod !== "All") {
         if (!(await probeFlows()))
           return { hist: [], forecasts: [], mode: "no-flows", missing: [] };
+        const nImp = ((META.importers || []).filter(x => x !== "All")).length;
+        const nExp = (resolveCountries(exp, (META.exporters||[]).filter(x=>x!=="All")) || []).length;
+        if (nExp * nImp * models.length > MAX_PAIR_LOADS)
+          return { hist: [], forecasts: [], mode: "too-large", missing: [],
+                   loadInfo: { pairs: nExp * nImp, models: models.length } };
         let hw = [];
         for (const k of models) {
           const { hist: h, forecast } = await exporterToWorld(k, exp, prod);
@@ -812,6 +837,13 @@
         if (!(await probeFlows()))
           return { hist: [], forecasts: [], mode: "no-flows", missing: [] };
         const aggregated = isRegion(exp) || isRegion(imp) || exp === "EU27" || imp === "EU27";
+        if (aggregated) {
+          const nE = (resolveCountries(exp, (META.exporters||[]).filter(x=>x!=="All")) || [exp]).length;
+          const nI = (resolveCountries(imp, (META.importers||[]).filter(x=>x!=="All")) || [imp]).length;
+          if (nE * nI * models.length > MAX_PAIR_LOADS)
+            return { hist: [], forecasts: [], mode: "too-large", missing: [],
+                     loadInfo: { pairs: nE * nI, models: models.length } };
+        }
         let hp = [];
         for (const k of models) {
           let mh, forecast;
@@ -890,7 +922,7 @@
 
       try {
         setStatus("Updating chart&hellip;");
-        const { hist, forecasts, mode, missing } = await getSelectedSeries();
+        const { hist, forecasts, mode, missing, loadInfo } = await getSelectedSeries();
         const traces = [];
 
         if (hist.length) {
@@ -927,6 +959,20 @@
           setStatus("<strong>Bilateral pair detail is not part of this deployment.</strong><br>" +
                     "This build ships the summary series only. Every other view works: set exporter " +
                     "or importer to <strong>All</strong>, or pick a product or analytical group.");
+          return;
+        }
+        if (mode === "too-large") {
+          const p = loadInfo ? loadInfo.pairs.toLocaleString() : "many";
+          const tot = loadInfo ? (loadInfo.pairs * loadInfo.models).toLocaleString() : "many";
+          setStatus(
+            `<strong>That view is too large to build in the browser.</strong><br>` +
+            `A region/exporter with a specific product and <em>All</em> importers needs ` +
+            `<strong>${p}</strong> country-pair files per layer (<strong>${tot}</strong> total here) — ` +
+            `loading them all would freeze the tab, so it was not attempted.<br>` +
+            `To see it: pick a <strong>specific importer</strong>, choose a <strong>single model layer</strong>, ` +
+            `or set the product to <strong>All</strong> (those read one summary file). ` +
+            `For region-to-world by product across all scenarios, use the notebook figure instead.`);
+          Plotly.purge("chart");
           return;
         }
         const modeLabel = { summary: "Summary view", pair: "Pair view",

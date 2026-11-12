@@ -130,13 +130,13 @@
   <div class="page">
     <section class="hero">
       <h1>AMIGDALA Trade Forecast Explorer</h1>
-      <p>GDP (EXIOMOD), CO&#8322; (TIAM) and sectoral growth (EXIOMOD) varied together</p>
+      <p>GDP (EXIOMOD), CO&#8322; (TIAM), sectoral growth (EXIOMOD) and the green tilt (TIAM) varied together &middot; model v4, 12 Nov 2026</p>
       <div class="hero-badges">
         <span class="badge">Historical BACI 2012&ndash;2024</span>
         <span class="badge">HS6 projections to 2070</span>
         <span class="badge">6 scenarios</span>
-        <span class="badge">4 channel-isolation runs</span>
-        <span class="badge">3 scenario channels</span>
+        <span class="badge">5 channel-isolation runs</span>
+        <span class="badge">4 scenario channels</span>
       </div>
     </section>
 
@@ -166,9 +166,9 @@
           <label>Model layers</label>
           <div class="checkbox-group" id="modelChecks"></div>
           <div class="helper-text">
-            Each scenario layer applies the same scenario number to all three channels: the
-            <strong>GDP overlay (EXIOMOD)</strong>, the <strong>CO&#8322; pathway (TIAM)</strong> and
-            <strong>sectoral growth (EXIOMOD)</strong>. The isolation layers switch channels off so
+            Each scenario layer applies the same scenario number to all four channels: the
+            <strong>GDP overlay (EXIOMOD)</strong>, the <strong>CO&#8322; pathway (TIAM)</strong>,
+            <strong>sectoral growth (EXIOMOD)</strong> and the <strong>green tilt (TIAM)</strong>. The isolation layers switch channels off so
             each can be read separately. Layers greyed out are not part of this deployment.
           </div>
         </div>
@@ -216,9 +216,10 @@
 
           <p>
             Bilateral merchandise trade at HS6 product level, estimated on BACI 2012&ndash;2024 and
-            projected to 2070. Three scenario channels sit on one pipeline: the <strong>EXIOMOD</strong>
-            GDP overlay, the <strong>TIAM</strong> CO&#8322; pathway, and <strong>EXIOMOD sectoral
-            growth</strong>. All three are imposed inputs; none is fitted to trade data.
+            projected to 2070. Four scenario channels sit on one pipeline: the <strong>EXIOMOD</strong>
+            GDP overlay, the <strong>TIAM</strong> CO&#8322; pathway, <strong>EXIOMOD sectoral
+            growth</strong> and the <strong>green tilt</strong> driven by TIAM decarbonisation. All four
+            are imposed inputs; none is fitted to the scenario variation in trade data.
           </p>
 
           <h4>Step 1 &mdash; chapter totals (PPML gravity)</h4>
@@ -245,22 +246,43 @@
           <h4>Step 3 &mdash; product shares within each chapter</h4>
           <p>
             A gradient-boosting model predicts the year-on-year change in each HS6 line&rsquo;s logit
-            share of its parent chapter. Features: the pair&rsquo;s recent share level, trend and
-            volatility, log distance, a product identifier, the three product exposure scores
-            (fossil, environmental good, low-carbon technology), and each of those interacted with
-            exporter CO&#8322;. Predicted shares are rescaled exactly to the Step 2 chapter total, so
-            adding-up is exact by construction rather than by approximation.
+            share of its parent chapter, from five features: the pair&rsquo;s three-year share level,
+            trend and volatility, log distance and a product identifier. The product exposure scores
+            and their CO&#8322; interactions were tested and dropped (less than 0.5% of the fit). The
+            model is built to predict one year ahead, so it adjusts shares over
+            <strong>2025&ndash;2027</strong> only; after that, shares are held fixed. Repeating the
+            one-year prediction to 2070 would pull every product toward an equal share of its chapter.
           </p>
 
-          <h4>The three scenario channels</h4>
+          <h4>Step 4 &mdash; green tilt (imposed)</h4>
+          <p>
+            As a country decarbonises, its imports shift toward green products and its exports away
+            from fossil-exposed products. Decarbonisation intensity <em>D</em> is the fall in TIAM
+            CO&#8322; per capita relative to 2024 (zero up to 2024). Each HS6 flow is scaled by
+            (1 + &beta;&middot;g&middot;D<sub>importer</sub>)(1 &minus; &gamma;&middot;f&middot;D<sub>exporter</sub>),
+            where g is the product&rsquo;s green relevance (environmental good or low-carbon technology)
+            and f its fossil-exposure relevance. &beta; = 2 and &gamma; = 1 are assumptions, not
+            estimates: historical data contain no usable signal of green-transition structural change.
+          </p>
+
+          <h4>Step 5 &mdash; rescaling</h4>
+          <p>
+            HS6 values are rescaled within each pair, chapter and year to the Step 2 chapter total, so
+            the green tilt moves the product mix but never trade levels, and HS6, HS4 and HS2 values
+            add up exactly by construction.
+          </p>
+
+          <h4>The four scenario channels</h4>
           <table>
             <tr><th>Channel</th><th>Source</th><th>What it moves</th></tr>
             <tr><td>GDP overlay &lambda;</td><td>EXIOMOD regional GDP</td>
                 <td>country trade <em>levels</em>; common to all chapters, so it cancels in shares</td></tr>
             <tr><td>CO&#8322;</td><td>TIAM emission pathways</td>
-                <td>composition, but only for fossil, environmental-good and low-carbon-tagged products</td></tr>
+                <td>chapter trade levels and, to a lesser extent, the chapter mix (chapter-specific Step 1 coefficients, all products)</td></tr>
             <tr><td>Sectoral growth</td><td>EXIOMOD <code>output_CITS</code></td>
-                <td>composition, across every product group</td></tr>
+                <td>composition between chapters, across every product group; the main source of differences between scenarios</td></tr>
+            <tr><td>Green tilt</td><td>TIAM decarbonisation <em>D</em></td>
+                <td>product mix within chapters: green products up for decarbonising importers, fossil-exposed products down for decarbonising exporters</td></tr>
           </table>
           <p>
             &lambda;(region, year) is the ratio of a scenario&rsquo;s regional GDP to the same
@@ -273,27 +295,30 @@
 
           <h4>Layers in this build</h4>
           <table>
-            <tr><th>Layer</th><th>GDP (EXIOMOD)</th><th>CO&#8322; (TIAM)</th><th>Sectoral growth</th></tr>
-            <tr><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td></tr>
-            <tr><td>SSP2</td><td>off</td><td>off</td><td>off</td></tr>
-            <tr><td>GDP only (EXIOMOD)</td><td>Scenario 1</td><td>off</td><td>off</td></tr>
-            <tr><td>CO&#8322; only (TIAM)</td><td>off</td><td>Scenario 1</td><td>off</td></tr>
-            <tr><td>Sector growth only</td><td>off</td><td>off</td><td>Scenario 1</td></tr>
+            <tr><th>Layer</th><th>GDP (EXIOMOD)</th><th>CO&#8322; (TIAM)</th><th>Sectoral growth</th><th>Green tilt</th></tr>
+            <tr><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td><td>Scenario <em>n</em></td></tr>
+            <tr><td>SSP2</td><td>off</td><td>off</td><td>off</td><td>off</td></tr>
+            <tr><td>GDP only (EXIOMOD)</td><td>Scenario 1</td><td>off</td><td>off</td><td>off</td></tr>
+            <tr><td>CO&#8322; only (TIAM)</td><td>off</td><td>Scenario 1</td><td>off</td><td>off</td></tr>
+            <tr><td>Sector growth only</td><td>off</td><td>off</td><td>Scenario 1</td><td>off</td></tr>
+            <tr><td>Green tilt only</td><td>off</td><td>off</td><td>off</td><td>Scenario 1</td></tr>
           </table>
 
           <h4>What is estimated and what is assumed</h4>
           <p>
             <strong>Estimated:</strong> gravity structure, chapter CO&#8322; elasticities, HS6 share
-            allocation. <strong>Imposed:</strong> the unit income elasticity, the TIAM pathway, the
-            EXIOMOD &lambda; overlay and the sectoral tilt. The sectoral channel cannot be estimated:
+            dynamics (applied 2025&ndash;2027). <strong>Imposed:</strong> the unit income elasticity,
+            the TIAM pathway, the EXIOMOD &lambda; overlay, the sectoral tilt and the green tilt
+            (&beta; = 2, &gamma; = 1). The sectoral channel cannot be estimated:
             the EXIOMOD scenarios are identical before 2025, so within-cell scenario variance over
             the estimation window is 0.0018 per cent of total, and a coefficient fitted there would
             be identified off the downscaling key rather than off scenario variation.
             <strong>Not supported by the data:</strong> a green reallocation
             mechanism &mdash; the cross-chapter test of whether fossil-exposed chapters contract
             faster as exporters decarbonise returns the wrong sign and is not statistically
-            significant, and the HS6 CO&#8322; interactions carry negligible feature importance.
-            Fuels results should be read as a scenario assumption, not as a model finding.
+            significant, and the green-goods and CO&#8322; features explained less than 0.5% of the
+            Step 3 fit and were dropped. The green tilt therefore imposes the link explicitly; fuels
+            and green-goods results should be read as scenario assumptions, not as model findings.
           </p>
           <p>
             <strong>Known artefact:</strong> the CO&#8322; variable is a standardised level rather
@@ -329,9 +354,8 @@
   <script>
     const TRADE_SCALE = 1000;
 
-    // ---- the nine layers in this export ----
-    // ---- GTM v2 (model freeze 30 Oct 2026) ----
-        // ---- GTM v2 (model freeze 30 Oct 2026) ----
+    // ---- the eleven layers in this export ----
+    // ---- GTM v4 (12 Nov 2026): GB shares 2025-2027 then fixed, 5 GB features, green tilt beta=2 gamma=1 ----
     const MODEL_CONFIG = {
       SW_SCENARIO_1:         { label: "Scenario 1",             color: "#15803d", group: "Scenarios" },
       SW_SCENARIO_6:         { label: "Scenario 6",             color: "#7c3aed", group: "Scenarios" },
